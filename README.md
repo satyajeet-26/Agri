@@ -140,6 +140,13 @@ application files.
 3. On first access, the app initializes an empty application-state table with
    its built-in starter data.
 
+If database-backed API routes return HTTP 500, inspect Vercel Function Logs for
+`Supabase REST request failed` or `Supabase REST request did not receive a
+response`. The logs include the HTTP status and Supabase error code/message
+without logging the project URL or service-role key. Verify that the
+`krushi_app_state` table exists and that the server-only
+`SUPABASE_SERVICE_ROLE_KEY` has the documented table permissions.
+
 The app does not automatically migrate existing records from a local JSON file
 or an earlier deployment. Import any records you need to keep into Supabase
 before switching production traffic.

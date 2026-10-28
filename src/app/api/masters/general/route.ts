@@ -19,6 +19,7 @@ export async function GET() {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to load general masters.";
+    console.error("GET /api/masters/general failed:", error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to update general masters.";
+    console.error("POST /api/masters/general failed:", error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
@@ -152,6 +154,7 @@ export async function DELETE(req: Request) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to delete location.";
+    console.error("DELETE /api/masters/general failed:", error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

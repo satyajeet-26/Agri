@@ -639,14 +639,19 @@ const INITIAL_DATABASE: DatabaseSchema = {
 const SUPABASE_TABLE = "krushi_app_state";
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "");
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
   if (!url && !serviceRoleKey) {
     return null;
   }
   if (!url || !serviceRoleKey) {
-    throw new Error("Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to use Supabase.");
+    const missingVariables = [
+      !url && "SUPABASE_URL",
+      !serviceRoleKey && "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter(Boolean);
+    console.error("Supabase configuration is incomplete.", { missingVariables });
+    throw new Error(`Missing Supabase environment variable(s): ${missingVariables.join(", ")}.`);
   }
 
   return { url, serviceRoleKey };
@@ -709,7 +714,12 @@ async function supabaseRequest(
   pathAndQuery: string,
   init?: RequestInit
 ): Promise<Response> {
-  const response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
+  const method = init?.method || "GET";
+  const resource = `/rest/v1/${pathAndQuery.split("?")[0]}`;
+  let response: Response;
+
+  try {
+    response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
     ...init,
     cache: "no-store",
     headers: {
@@ -717,11 +727,43 @@ async function supabaseRequest(
       Authorization: `Bearer ${serviceRoleKey}`,
       ...(init?.headers || {}),
     },
-  });
+    });
+  } catch (error: unknown) {
+    const name = error instanceof Error ? error.name : "UnknownError";
+    const message = error instanceof Error ? error.message : "Unknown network error";
+    console.error("Supabase REST request did not receive a response.", {
+      method,
+      resource,
+      errorName: name,
+      errorMessage: message,
+    });
+    throw new Error(`Supabase REST request failed before receiving a response (${name}).`);
+  }
 
   if (!response.ok) {
-    const details = await response.text();
-    console.error(`Supabase request failed (${response.status}):`, details);
+    const responseText = await response.text();
+    let responseError: {
+      code?: unknown;
+      message?: unknown;
+      hint?: unknown;
+    } = {};
+    try {
+      responseError = JSON.parse(responseText);
+    } catch {
+      responseError = { message: responseText.slice(0, 500) };
+    }
+
+    console.error("Supabase REST request failed.", {
+      method,
+      resource,
+      status: response.status,
+      code: typeof responseError.code === "string" ? responseError.code : undefined,
+      message:
+        typeof responseError.message === "string"
+          ? responseError.message
+          : "Supabase returned an unrecognized error response.",
+      hint: typeof responseError.hint === "string" ? responseError.hint : undefined,
+    });
     throw new Error(`Supabase database request failed (${response.status}).`);
   }
 
@@ -803,7 +845,13 @@ export async function getDb(): Promise<DatabaseSchema> {
   }
 
   if (process.env.VERCEL) {
-    throw new Error("Supabase is required in Vercel. Configure the Supabase environment variables.");
+    const missingVariables = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter(
+      (name) => !process.env[name]?.trim()
+    );
+    console.error("Supabase configuration is missing in Vercel.", { missingVariables });
+    throw new Error(
+      `Supabase is required in Vercel. Missing environment variable(s): ${missingVariables.join(", ")}.`
+    );
   }
   const localDatabase = getLocalDatabase();
   return localDatabase;
@@ -817,7 +865,13 @@ export async function saveDb(data: DatabaseSchema): Promise<void> {
   }
 
   if (process.env.VERCEL) {
-    throw new Error("Supabase is required in Vercel. Configure the Supabase environment variables.");
+    const missingVariables = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"].filter(
+      (name) => !process.env[name]?.trim()
+    );
+    console.error("Supabase configuration is missing in Vercel.", { missingVariables });
+    throw new Error(
+      `Supabase is required in Vercel. Missing environment variable(s): ${missingVariables.join(", ")}.`
+    );
   }
 
   try {
