@@ -140,6 +140,10 @@ application files.
 3. On first access, the app initializes an empty application-state table with
    its built-in starter data.
 
+   Starter/demo records are only inserted when the application-state row does
+   not exist. Deleting a farmer or plot is persistent; deleted demo records are
+   not automatically restored on later requests.
+
 If database-backed API routes return HTTP 500, inspect Vercel Function Logs for
 `Supabase REST request failed` or `Supabase REST request did not receive a
 response`. The logs include the HTTP status and Supabase error code/message
