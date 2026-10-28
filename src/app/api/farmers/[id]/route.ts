@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb, saveDb, cloneMasterScheduleForPlot } from "@/lib/db";
+import { getDb, saveDb, cloneMasterScheduleForPlot, toPublicFarmer } from "@/lib/db";
 import { calculateTotalGuntha } from "@/lib/area";
 import { Plot } from "@/types";
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ success: false, message: "Farmer not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, farmer });
+    return NextResponse.json({ success: true, farmer: toPublicFarmer(farmer) });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -98,7 +98,7 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: "Farmer updated successfully",
-      farmer: db.farmers[index],
+      farmer: toPublicFarmer(db.farmers[index]),
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

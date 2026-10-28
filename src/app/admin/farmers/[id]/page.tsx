@@ -600,9 +600,7 @@ export default function FarmerDetailsPage() {
             <Lock className="w-4 h-4 text-slate-400" />
             <div>
               <p className="text-[10px] text-slate-400 font-semibold">Farmer Password</p>
-              <span className="font-mono font-bold text-amber-800">
-                {farmer.plainPassword || farmer.passwordHash}
-              </span>
+              <span className="font-mono font-bold text-amber-800">Not displayed</span>
             </div>
           </div>
         </div>

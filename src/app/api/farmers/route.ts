@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { getDb, saveDb, cloneMasterScheduleForPlot } from "@/lib/db";
+import { getDb, saveDb, cloneMasterScheduleForPlot, toPublicFarmer } from "@/lib/db";
 import { calculateTotalGuntha } from "@/lib/area";
 import { Farmer, Plot } from "@/types";
 
 export async function GET() {
   try {
     const db = await getDb();
-    return NextResponse.json({ success: true, farmers: db.farmers });
+    return NextResponse.json({
+      success: true,
+      farmers: db.farmers.map(toPublicFarmer),
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
@@ -92,7 +95,7 @@ export async function POST(req: Request) {
       success: true,
       message: "Farmer registered successfully",
       usernameAdjusted: username !== requestedUsername,
-      farmer: newFarmer,
+      farmer: toPublicFarmer(newFarmer),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unexpected error";

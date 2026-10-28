@@ -178,8 +178,8 @@ export interface Farmer {
   village: string;
   // Login
   username: string;
-  passwordHash: string; // plain text / hash for farmer display
-  plainPassword?: string; // easy reference for Admin to assist farmer
+  passwordHash: string;
+  plainPassword?: string;
   isActive: boolean;
   plots: Plot[];
 }

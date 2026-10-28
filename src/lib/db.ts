@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import {
   DatabaseSchema,
+  Farmer,
   PersonalizedFertilizerItem,
   PersonalizedSprayItem,
 } from "@/types";
@@ -655,6 +656,53 @@ function cloneInitialDatabase(): DatabaseSchema {
   return JSON.parse(JSON.stringify(INITIAL_DATABASE)) as DatabaseSchema;
 }
 
+export function toPublicFarmer(
+  farmer: Farmer
+): Omit<Farmer, "passwordHash" | "plainPassword"> {
+  const publicFarmer = { ...farmer };
+  Reflect.deleteProperty(publicFarmer, "passwordHash");
+  Reflect.deleteProperty(publicFarmer, "plainPassword");
+  return publicFarmer;
+}
+
+function addMissingDemoFarmers(database: DatabaseSchema): boolean {
+  const demoUsernames = new Set(["ramesh", "suresh"]);
+  const missingFarmers = INITIAL_DATABASE.farmers.filter(
+    (farmer) =>
+      demoUsernames.has(farmer.username.toLowerCase()) &&
+      !database.farmers.some(
+        (existingFarmer) =>
+          existingFarmer.username.trim().toLowerCase() === farmer.username.toLowerCase()
+      )
+  );
+
+  if (missingFarmers.length === 0) {
+    return false;
+  }
+
+  const demoFarmers = JSON.parse(
+    JSON.stringify(missingFarmers)
+  ) as DatabaseSchema["farmers"];
+  const existingIds = new Set(database.farmers.map((farmer) => farmer.id));
+
+  for (const farmer of demoFarmers) {
+    if (existingIds.has(farmer.id)) {
+      const baseId = `fm-demo-${farmer.username.toLowerCase()}`;
+      let candidateId = baseId;
+      let suffix = 2;
+      while (existingIds.has(candidateId)) {
+        candidateId = `${baseId}-${suffix++}`;
+      }
+      farmer.id = candidateId;
+    }
+
+    existingIds.add(farmer.id);
+    database.farmers.push(farmer);
+  }
+
+  return true;
+}
+
 async function supabaseRequest(
   url: string,
   serviceRoleKey: string,
@@ -727,10 +775,14 @@ function getLocalDatabase(): DatabaseSchema {
       return initialDatabase;
     }
     const raw = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(raw) as DatabaseSchema;
+    const database = JSON.parse(raw) as DatabaseSchema;
+    if (addMissingDemoFarmers(database)) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2), "utf-8");
+    }
+    return database;
   } catch (error) {
     console.error("Error reading database file:", error);
-    throw new Error("Failed to read the local database.");
+    throw new Error("Failed to read or update the local database.");
   }
 }
 
@@ -739,6 +791,9 @@ export async function getDb(): Promise<DatabaseSchema> {
   if (supabase) {
     const existing = await getSupabaseDatabase(supabase.url, supabase.serviceRoleKey);
     if (existing) {
+      if (addMissingDemoFarmers(existing)) {
+        await saveSupabaseDatabase(supabase.url, supabase.serviceRoleKey, existing);
+      }
       return existing;
     }
 

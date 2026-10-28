@@ -77,7 +77,7 @@ export default function FarmerMasterPage() {
     taluka: "",
     village: "",
     username: "",
-    password: "1234",
+    password: "",
     plots: [
       {
         plotName: "Plot 1",
@@ -236,7 +236,7 @@ export default function FarmerMasterPage() {
               )?.id === village.talukaId
             )?.name || "",
           username: "",
-          password: "1234",
+          password: "",
           plots: [
             {
               plotName: "Plot 1",
@@ -680,11 +680,11 @@ export default function FarmerMasterPage() {
                       Login Password (पासवर्ड) *
                     </label>
                     <input
-                      type="text"
+                      type="password"
                       required
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="1234"
+                      placeholder="Set login password"
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono"
                     />
                   </div>

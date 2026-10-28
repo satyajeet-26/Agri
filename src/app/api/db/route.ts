@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { getDb, saveDb } from "@/lib/db";
+import { getDb, saveDb, toPublicFarmer } from "@/lib/db";
 
 export async function GET() {
   try {
     const db = await getDb();
-    return NextResponse.json({ success: true, data: db });
+    const { admin, farmers, ...data } = db;
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...data,
+        admin: { email: admin.email },
+        farmers: farmers.map(toPublicFarmer),
+      },
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

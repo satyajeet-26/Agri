@@ -3,7 +3,10 @@ import { getDb } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { username, password, role } = await req.json();
+    const body = await req.json();
+    const username = typeof body?.username === "string" ? body.username.trim() : "";
+    const password = typeof body?.password === "string" ? body.password : "";
+    const role = body?.role;
 
     if (!username || !password) {
       return NextResponse.json(
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
     // Farmer login
     const farmer = db.farmers.find(
       (f) =>
-        f.username.toLowerCase() === username.toLowerCase().trim() ||
+        f.username.toLowerCase() === username.toLowerCase() ||
         f.mobile === username.trim()
     );
 
@@ -71,7 +74,9 @@ export async function POST(req: Request) {
       { success: false, message: "Invalid Farmer username or password" },
       { status: 401 }
     );
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("Login request failed:", error);
+    const message = error instanceof Error ? error.message : "Login service is unavailable.";
+    return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }

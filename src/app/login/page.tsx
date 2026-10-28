@@ -9,7 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"farmer" | "admin">("farmer");
   const [username, setUsername] = useState("ramesh");
-  const [password, setPassword] = useState("1234");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
@@ -30,10 +30,10 @@ export default function LoginPage() {
     setError(null);
     if (tab === "farmer") {
       setUsername("ramesh");
-      setPassword("1234");
+      setPassword("");
     } else {
       setUsername("admin@krushi.com");
-      setPassword("admin123");
+      setPassword("");
     }
   };
 
@@ -69,9 +69,13 @@ export default function LoginPage() {
           window.location.href = "/farmer";
         }
       } else {
-        setError(json.message || "Invalid credentials");
+        setError(
+          json.message ||
+            json.error ||
+            `Login failed (HTTP ${res.status}). Please try again or contact the administrator.`
+        );
       }
-    } catch (err: any) {
+    } catch {
       setError("Network error while logging in");
     } finally {
       setLoading(false);
@@ -192,13 +196,17 @@ export default function LoginPage() {
             </p>
             {activeTab === "farmer" ? (
               <p className="text-[11px] text-slate-600">
-                Farmer 1: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">ramesh</code> / Pass: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">1234</code>
+                Farmer 1: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">ramesh</code>
                 <br />
-                Farmer 2: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">suresh</code> / Pass: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">1234</code>
+                Farmer 2: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">suresh</code>
+                <br />
+                Use the demo password provided by your administrator.
               </p>
             ) : (
               <p className="text-[11px] text-slate-600">
-                Admin: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">admin@krushi.com</code> / Pass: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">admin123</code>
+                Admin: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">admin@krushi.com</code>
+                <br />
+                Use the admin password configured for this deployment.
               </p>
             )}
           </div>
@@ -213,4 +221,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
