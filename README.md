@@ -19,13 +19,15 @@ A full-stack, responsive web application and consultancy management system desig
 - **B. Year Master**: Add and toggle active financial/agriculture years (e.g., `2026–27`, `2027–28`).
 - **C. Unit Master**: Units for chemicals and fertilizers (`ml`, `ltr`, `gm`, `kg`, `bag`).
 - **D. Login Settings**: Change Admin Email ID and Password.
-- **E–H. Location Hierarchy Master**: Strict cascading location management:
-  $$\text{State} \longrightarrow \text{District} \longrightarrow \text{Taluka} \longrightarrow \text{Village}$$
+- **E. Location Master**: Admins can manually add states, districts, talukas,
+  and villages in order, and delete entries. Deleting a parent location also
+  deletes its child locations. New farmer registration uses cascading
+  dropdowns for the saved locations.
 
 ### 3. 💊 Side Menu 2: Medicine Master
 - **A. Medicine Company**: Add and manage manufacturers (Syngenta, Bayer, UPL, Dhanuka, BASF, FMC, Sumitomo, etc.).
 - **B. Medicine Categories**: Fungicide, Bactericides, Chemical Insecticides, Organic Insecticides, Acaricides, Nematicides, Organic Fungicides, Growth Hormones / Nutrients.
-- **C. Medicine Master**: Add, edit, delete, and search medicines (Liquid / Powder, Company, Category, Unit).
+- **C. Medicine Master**: Add, edit, delete, and search medicines (Liquid / Powder / Granules, Company, Category, Unit).
 - **D. Fertilizer Master**: Add, edit, delete, and search fertilizers (10:26:26, DAP, 12:61:00, 00:52:34, 13:00:45, Calcium Nitrate, Urea) with application methods.
 
 ### 4. 🚿 Side Menu 3: Spray Master / Schedule Master
@@ -62,7 +64,13 @@ A full-stack, responsive web application and consultancy management system desig
   - Kendra Name & Helpline
 - Uses zero-cost `wa.me` deep linking: opens WhatsApp Web or WhatsApp mobile app directly.
 
-### 9. 📱 Farmer Panel (Mobile-First)
+### 9. 🔔 Dated Schedule Reminders
+- Admins assign an exact calendar date to personalized spray and fertilizer entries in the farmer's profile.
+- The Farmer Panel shows activities on their scheduled date and lists upcoming activities with their dates.
+- For a Marathi WhatsApp reminder, an admin can click **Send WhatsApp** beside a schedule. WhatsApp opens with a prepared message; the admin reviews and sends it manually.
+- This simple mode does not require WhatsApp Business API credentials, templates, database setup, or a scheduled job.
+
+### 10. 📱 Farmer Panel (Mobile-First)
 - Secure, read-only login for farmers using their Username & Password.
 - Strict data privacy: Farmers see **only their own plots and schedules**.
 - **Today's Schedule Highlight**: Displays today's active spray or fertilizer requirement prominently.
@@ -104,11 +112,43 @@ npm run dev
 http://localhost:3000
 ```
 
+## ☁️ Vercel Deployment with Supabase
+
+The app uses the local JSON file for development. Vercel deployments must use
+Supabase because serverless deployments do not provide persistent writable
+application files.
+
+1. In the Supabase SQL Editor, create the private application-state table:
+
+   ```sql
+   create table if not exists public.krushi_app_state (
+     id integer primary key check (id = 1),
+     state jsonb not null
+   );
+
+   alter table public.krushi_app_state enable row level security;
+   revoke all on table public.krushi_app_state from anon, authenticated;
+   grant select, insert, update on table public.krushi_app_state to service_role;
+   ```
+
+2. In the Vercel project settings, add these environment variables for each
+   deployment environment you use:
+   - `SUPABASE_URL`: the Project URL from Supabase.
+   - `SUPABASE_SERVICE_ROLE_KEY`: the service-role key from the Supabase API
+     settings. Keep this secret; do not use a `NEXT_PUBLIC_` variable or commit
+     it to source control.
+3. On first access, the app initializes an empty application-state table with
+   its built-in starter data.
+
+The app does not automatically migrate existing records from a local JSON file
+or an earlier deployment. Import any records you need to keep into Supabase
+before switching production traffic.
+
 ---
 
 ## 🛠️ Technology Stack
 - **Framework**: Next.js 16 (App Router, React 19, TypeScript)
 - **Styling**: Tailwind CSS v4 with custom responsive design
 - **Icons**: Lucide React
-- **Storage / Database**: Persistent JSON database engine in `src/data/krushi_db.json` with 1:1 mapping to PostgreSQL/Prisma for production deployment
-- **WhatsApp Integration**: Zero-cost direct WhatsApp deep linking (`wa.me`)
+- **Storage / Database**: Local JSON file for development; Supabase JSONB storage for persistent Vercel deployments
+- **WhatsApp Integration**: Manual `wa.me` links with prepared Marathi messages

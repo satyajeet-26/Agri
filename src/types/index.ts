@@ -1,7 +1,7 @@
 // Comprehensive TypeScript Definitions for Krushi Seva Kendra System
 
 export type OpeningBalanceType = "Credit" | "Debit";
-export type MedicineType = "Liquid" | "Powder";
+export type MedicineType = "Liquid" | "Powder" | "Granules";
 export type ScheduleTime = "Morning" | "Evening";
 export type UserRole = "ADMIN" | "FARMER";
 
@@ -71,7 +71,7 @@ export interface MedicineCategory {
 export interface Medicine {
   id: string;
   name: string;
-  type: MedicineType; // Liquid | Powder
+  type: MedicineType;
   companyId: string;
   companyName: string;
   categoryId: string;
@@ -125,6 +125,7 @@ export interface MasterCropSchedule {
 export interface PersonalizedSprayItem {
   id: string;
   day: number;
+  scheduledDate?: string;
   time: ScheduleTime;
   medicineId: string;
   medicineName: string;
@@ -138,6 +139,7 @@ export interface PersonalizedSprayItem {
 export interface PersonalizedFertilizerItem {
   id: string;
   day: number;
+  scheduledDate?: string;
   stage: string;
   fertilizerId: string;
   fertilizerName: string;
@@ -203,4 +205,3 @@ export interface DatabaseSchema {
   masterSchedules: Record<string, MasterCropSchedule>; // key: cropName
   farmers: Farmer[];
 }
-

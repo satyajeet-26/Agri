@@ -4,7 +4,7 @@ import { MasterCropSchedule } from "@/types";
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = await getDb();
     return NextResponse.json({ success: true, masterSchedules: db.masterSchedules });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -14,7 +14,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await getDb();
     const { action, cropName, scheduleType, item, itemId, newCropName } = body;
 
     if (!cropName && !newCropName) {
@@ -36,24 +36,47 @@ export async function POST(req: Request) {
 
     if (action === "ADD_CROP") {
       // Crop already created in guard above
-      saveDb(db);
+      await saveDb(db);
       return NextResponse.json({ success: true, message: `Crop ${targetCrop} added`, cropSchedule });
     }
 
     if (action === "ADD_ITEM") {
       if (scheduleType === "spray") {
-        const newItem = {
-          id: `msp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          day: Number(item.day),
-          time: item.time || "Morning",
-          medicineId: item.medicineId || "",
-          medicineName: item.medicineName || "",
-          quantity: String(item.quantity || ""),
-          unit: item.unit || "ml",
-          waterQuantity: item.waterQuantity || "15 Litres",
-          note: item.note || "",
-        };
-        cropSchedule.spraySchedules.push(newItem);
+        const sprayItems = Array.isArray(body.items) ? body.items : [item];
+        if (
+          !item ||
+          sprayItems.length === 0 ||
+          sprayItems.some(
+            (sprayItem: { medicineName?: string }) =>
+              typeof sprayItem?.medicineName !== "string" || !sprayItem.medicineName.trim()
+          )
+        ) {
+          return NextResponse.json(
+            { success: false, message: "Enter at least one medicine name for the spray day." },
+            { status: 400 }
+          );
+        }
+
+        cropSchedule.spraySchedules.push(
+          ...sprayItems.map(
+            (sprayItem: {
+              medicineId?: string;
+              medicineName?: string;
+              quantity?: string;
+              unit?: string;
+            }) => ({
+              id: `msp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+              day: Number(item.day),
+              time: item.time || "Morning",
+              medicineId: sprayItem.medicineId || "",
+              medicineName: sprayItem.medicineName || "",
+              quantity: String(sprayItem.quantity || ""),
+              unit: sprayItem.unit || "ml",
+              waterQuantity: item.waterQuantity || "15 Litres",
+              note: item.note || "",
+            })
+          )
+        );
         cropSchedule.spraySchedules.sort((a, b) => a.day - b.day);
       } else {
         const newItem = {
@@ -95,7 +118,7 @@ export async function POST(req: Request) {
       delete db.masterSchedules[targetCrop];
     }
 
-    saveDb(db);
+    await saveDb(db);
 
     return NextResponse.json({
       success: true,
@@ -106,4 +129,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

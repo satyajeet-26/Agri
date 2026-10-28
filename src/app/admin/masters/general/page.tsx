@@ -9,7 +9,6 @@ import {
   MapPin,
   Plus,
   Trash2,
-  Edit2,
   Save,
   CheckCircle,
   AlertCircle,
@@ -23,6 +22,10 @@ import {
   TalukaMaster,
   VillageMaster,
 } from "@/types";
+
+function createLocationId(prefix: string): string {
+  return `${prefix}-${globalThis.crypto.randomUUID()}`;
+}
 
 export default function GeneralMasterPage() {
   const [activeTab, setActiveTab] = useState<
@@ -55,17 +58,17 @@ export default function GeneralMasterPage() {
   const [districts, setDistricts] = useState<DistrictMaster[]>([]);
   const [talukas, setTalukas] = useState<TalukaMaster[]>([]);
   const [villages, setVillages] = useState<VillageMaster[]>([]);
-
-  // Sub-tab for Locations
-  const [locationSubTab, setLocationSubTab] = useState<"state" | "district" | "taluka" | "village">("village");
+  const [locationSubTab, setLocationSubTab] = useState<
+    "state" | "district" | "taluka" | "village"
+  >("state");
+  const [selectedStateId, setSelectedStateId] = useState("");
+  const [selectedDistrictId, setSelectedDistrictId] = useState("");
+  const [selectedTalukaId, setSelectedTalukaId] = useState("");
+  const [newLocationName, setNewLocationName] = useState("");
 
   // Form inputs for adding items
   const [newYear, setNewYear] = useState({ yearName: "", startDate: "", endDate: "" });
   const [newUnit, setNewUnit] = useState({ unitName: "", shortName: "" });
-  const [newState, setNewState] = useState("");
-  const [newDistrict, setNewDistrict] = useState({ name: "", stateId: "" });
-  const [newTaluka, setNewTaluka] = useState({ name: "", districtId: "" });
-  const [newVillage, setNewVillage] = useState({ name: "", talukaId: "" });
 
   const loadData = async () => {
     try {
@@ -81,16 +84,175 @@ export default function GeneralMasterPage() {
         setDistricts(d.districts || []);
         setTalukas(d.talukas || []);
         setVillages(d.villages || []);
-
-        // Pre-select location parent dropdowns
-        if (d.states?.[0]) setNewDistrict((prev) => ({ ...prev, stateId: d.states[0].id }));
-        if (d.districts?.[0]) setNewTaluka((prev) => ({ ...prev, districtId: d.districts[0].id }));
-        if (d.talukas?.[0]) setNewVillage((prev) => ({ ...prev, talukaId: d.talukas[0].id }));
+        const firstState = d.states?.[0];
+        const firstDistrict = d.districts?.find(
+          (district: DistrictMaster) => district.stateId === firstState?.id
+        );
+        const firstTaluka = d.talukas?.find(
+          (taluka: TalukaMaster) => taluka.districtId === firstDistrict?.id
+        );
+        setSelectedStateId(firstState?.id || "");
+        setSelectedDistrictId(firstDistrict?.id || "");
+        setSelectedTalukaId(firstTaluka?.id || "");
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveLocationList = async (
+    section: "states" | "districts" | "talukas" | "villages",
+    data: StateMaster[] | DistrictMaster[] | TalukaMaster[] | VillageMaster[]
+  ) => {
+    try {
+      const res = await fetch("/api/masters/general", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, data }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showNotification("error", json.error || `Failed to save ${section}.`);
+        return false;
+      }
+      return true;
+    } catch {
+      showNotification("error", `Failed to save ${section}.`);
+      return false;
+    }
+  };
+
+  const handleAddLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name) return;
+
+    if (locationSubTab === "state") {
+      if (states.some((state) => state.name.toLowerCase() === name.toLowerCase())) {
+        showNotification("error", "This state already exists.");
+        return;
+      }
+      const state = { id: createLocationId("st"), name };
+      const updated = [...states, state];
+      if (await saveLocationList("states", updated)) {
+        setStates(updated);
+        setSelectedStateId(state.id);
+        setSelectedDistrictId("");
+        setSelectedTalukaId("");
+        setNewLocationName("");
+        showNotification("success", "State added.");
+      }
+      return;
+    }
+
+    if (locationSubTab === "district") {
+      if (!selectedStateId) {
+        showNotification("error", "Add and select a state first.");
+        return;
+      }
+      if (districts.some((district) => district.stateId === selectedStateId && district.name.toLowerCase() === name.toLowerCase())) {
+        showNotification("error", "This district already exists in the selected state.");
+        return;
+      }
+      const district = { id: createLocationId("dt"), stateId: selectedStateId, name };
+      const updated = [...districts, district];
+      if (await saveLocationList("districts", updated)) {
+        setDistricts(updated);
+        setSelectedDistrictId(district.id);
+        setSelectedTalukaId("");
+        setNewLocationName("");
+        showNotification("success", "District added.");
+      }
+      return;
+    }
+
+    if (locationSubTab === "taluka") {
+      if (!selectedDistrictId) {
+        showNotification("error", "Add and select a district first.");
+        return;
+      }
+      if (talukas.some((taluka) => taluka.districtId === selectedDistrictId && taluka.name.toLowerCase() === name.toLowerCase())) {
+        showNotification("error", "This taluka already exists in the selected district.");
+        return;
+      }
+      const taluka = { id: createLocationId("tk"), districtId: selectedDistrictId, name };
+      const updated = [...talukas, taluka];
+      if (await saveLocationList("talukas", updated)) {
+        setTalukas(updated);
+        setSelectedTalukaId(taluka.id);
+        setNewLocationName("");
+        showNotification("success", "Taluka added.");
+      }
+      return;
+    }
+
+    if (!selectedTalukaId) {
+      showNotification("error", "Add and select a taluka first.");
+      return;
+    }
+    if (villages.some((village) => village.talukaId === selectedTalukaId && village.name.toLowerCase() === name.toLowerCase())) {
+      showNotification("error", "This village already exists in the selected taluka.");
+      return;
+    }
+    const village = { id: createLocationId("vg"), talukaId: selectedTalukaId, name };
+    const updated = [...villages, village];
+    if (await saveLocationList("villages", updated)) {
+      setVillages(updated);
+      setNewLocationName("");
+      showNotification("success", "Village added.");
+    }
+  };
+
+  const handleDeleteLocation = async (
+    section: "states" | "districts" | "talukas" | "villages",
+    id: string,
+    name: string
+  ) => {
+    const level = section.slice(0, -1);
+    const cascadeWarning =
+      section === "states"
+        ? " All districts, talukas, and villages inside it will also be deleted."
+        : section === "districts"
+          ? " All talukas and villages inside it will also be deleted."
+          : section === "talukas"
+            ? " All villages inside it will also be deleted."
+            : "";
+    if (!confirm(`Delete ${level} "${name}"?${cascadeWarning}`)) return;
+
+    try {
+      const res = await fetch("/api/masters/general", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, id }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showNotification("error", json.error || `Failed to delete ${level}.`);
+        return;
+      }
+      setStates(json.data.states);
+      setDistricts(json.data.districts);
+      setTalukas(json.data.talukas);
+      setVillages(json.data.villages);
+      setSelectedStateId((current) =>
+        json.data.states.some((state: StateMaster) => state.id === current)
+          ? current
+          : json.data.states[0]?.id || ""
+      );
+      setSelectedDistrictId((current) =>
+        json.data.districts.some((district: DistrictMaster) => district.id === current)
+          ? current
+          : ""
+      );
+      setSelectedTalukaId((current) =>
+        json.data.talukas.some((taluka: TalukaMaster) => taluka.id === current)
+          ? current
+          : ""
+      );
+      showNotification("success", `${level[0].toUpperCase()}${level.slice(1)} deleted.`);
+    } catch {
+      showNotification("error", `Failed to delete ${level}.`);
     }
   };
 
@@ -214,75 +376,6 @@ export default function GeneralMasterPage() {
     });
   };
 
-  // 5. Locations Helpers
-  const handleAddState = async () => {
-    if (!newState) return;
-    const item: StateMaster = { id: `st-${Date.now()}`, name: newState };
-    const updated = [...states, item];
-    setStates(updated);
-    setNewState("");
-    await fetch("/api/masters/general", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "states", data: updated }),
-    });
-    showNotification("success", "State added!");
-  };
-
-  const handleAddDistrict = async () => {
-    if (!newDistrict.name || !newDistrict.stateId) return;
-    const item: DistrictMaster = {
-      id: `dt-${Date.now()}`,
-      stateId: newDistrict.stateId,
-      name: newDistrict.name,
-    };
-    const updated = [...districts, item];
-    setDistricts(updated);
-    setNewDistrict({ ...newDistrict, name: "" });
-    await fetch("/api/masters/general", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "districts", data: updated }),
-    });
-    showNotification("success", "District added!");
-  };
-
-  const handleAddTaluka = async () => {
-    if (!newTaluka.name || !newTaluka.districtId) return;
-    const item: TalukaMaster = {
-      id: `tk-${Date.now()}`,
-      districtId: newTaluka.districtId,
-      name: newTaluka.name,
-    };
-    const updated = [...talukas, item];
-    setTalukas(updated);
-    setNewTaluka({ ...newTaluka, name: "" });
-    await fetch("/api/masters/general", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "talukas", data: updated }),
-    });
-    showNotification("success", "Taluka added!");
-  };
-
-  const handleAddVillage = async () => {
-    if (!newVillage.name || !newVillage.talukaId) return;
-    const item: VillageMaster = {
-      id: `vg-${Date.now()}`,
-      talukaId: newVillage.talukaId,
-      name: newVillage.name,
-    };
-    const updated = [...villages, item];
-    setVillages(updated);
-    setNewVillage({ ...newVillage, name: "" });
-    await fetch("/api/masters/general", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ section: "villages", data: updated }),
-    });
-    showNotification("success", "Village added!");
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -300,7 +393,7 @@ export default function GeneralMasterPage() {
             1. General Master Settings
           </h1>
           <p className="text-xs text-slate-500">
-            Configure Krushi Seva Kendra Profile, Financial Years, Units, Login, and State/District/Taluka/Village locations
+            Configure the shop profile, financial years, units, and admin login
           </p>
         </div>
 
@@ -381,7 +474,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <MapPin className="w-4 h-4" />
-          <span>E–H. State → Village Masters</span>
+          <span>E. Location Master</span>
         </button>
       </div>
 
@@ -750,177 +843,155 @@ export default function GeneralMasterPage() {
         </form>
       )}
 
-      {/* TAB E-H: State -> District -> Taluka -> Village */}
       {activeTab === "locations" && (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-5">
-          <div className="pb-2 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-800">Location Hierarchy Master</h2>
+        <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">Location Master</h2>
             <p className="text-xs text-slate-500">
-              Structured location chain: <span className="font-semibold text-emerald-700">State → District → Taluka → Village</span>
+              Type and add each location in order: state, district, taluka, then village.
             </p>
           </div>
 
-          {/* Sub tabs for locations */}
-          <div className="flex gap-2">
-            {(["state", "district", "taluka", "village"] as const).map((sub) => (
+          <div className="flex flex-wrap gap-2">
+            {(["state", "district", "taluka", "village"] as const).map((level) => (
               <button
-                key={sub}
-                onClick={() => setLocationSubTab(sub)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
-                  locationSubTab === sub
-                    ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                key={level}
+                type="button"
+                onClick={() => {
+                  setLocationSubTab(level);
+                  setNewLocationName("");
+                }}
+                className={`rounded-lg px-3 py-2 text-xs font-bold capitalize ${
+                  locationSubTab === level
+                    ? "border border-emerald-300 bg-emerald-100 text-emerald-900"
                     : "bg-slate-50 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                {sub} Master ({sub === "state" ? states.length : sub === "district" ? districts.length : sub === "taluka" ? talukas.length : villages.length})
+                {level} ({level === "state" ? states.length : level === "district" ? districts.length : level === "taluka" ? talukas.length : villages.length})
               </button>
             ))}
           </div>
 
-          {/* State Form & Table */}
-          {locationSubTab === "state" && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newState}
-                  onChange={(e) => setNewState(e.target.value)}
-                  placeholder="State Name (e.g. Maharashtra)"
-                  className="flex-1 text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                />
-                <button
-                  onClick={handleAddState}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
-                >
-                  Add State
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {states.map((s) => (
-                  <div key={s.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800">
-                    {s.name}
-                  </div>
-                ))}
-              </div>
+          {locationSubTab !== "state" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  State
+                  <select
+                    value={selectedStateId}
+                    onChange={(e) => {
+                      const stateId = e.target.value;
+                      const firstDistrict = districts.find((item) => item.stateId === stateId);
+                      const firstTaluka = talukas.find((item) => item.districtId === firstDistrict?.id);
+                      setSelectedStateId(stateId);
+                      setSelectedDistrictId(firstDistrict?.id || "");
+                      setSelectedTalukaId(firstTaluka?.id || "");
+                    }}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                  >
+                    <option value="">Select State</option>
+                    {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
+                  </select>
+              </label>
+              {(locationSubTab === "taluka" || locationSubTab === "village") && (
+                <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  District
+                  <select
+                    value={selectedDistrictId}
+                    onChange={(e) => {
+                      const districtId = e.target.value;
+                      const firstTaluka = talukas.find((item) => item.districtId === districtId);
+                      setSelectedDistrictId(districtId);
+                      setSelectedTalukaId(firstTaluka?.id || "");
+                    }}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                  >
+                    <option value="">Select District</option>
+                    {districts.filter((item) => item.stateId === selectedStateId).map((district) => (
+                      <option key={district.id} value={district.id}>{district.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {locationSubTab === "village" && (
+                <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  Taluka
+                  <select
+                    value={selectedTalukaId}
+                    onChange={(e) => setSelectedTalukaId(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                  >
+                    <option value="">Select Taluka</option>
+                    {talukas.filter((item) => item.districtId === selectedDistrictId).map((taluka) => (
+                      <option key={taluka.id} value={taluka.id}>{taluka.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
           )}
 
-          {/* District Form & Table */}
-          {locationSubTab === "district" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <select
-                  value={newDistrict.stateId}
-                  onChange={(e) => setNewDistrict({ ...newDistrict, stateId: e.target.value })}
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  <option value="">Select State</option>
-                  {states.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={newDistrict.name}
-                  onChange={(e) => setNewDistrict({ ...newDistrict, name: e.target.value })}
-                  placeholder="District Name (e.g. Satara)"
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                />
-                <button
-                  onClick={handleAddDistrict}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
-                >
-                  Add District
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {districts.map((d) => (
-                  <div key={d.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800">
-                    {d.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleAddLocation();
+            }}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
+            <input
+              type="text"
+              required
+              value={newLocationName}
+              onChange={(e) => setNewLocationName(e.target.value)}
+              placeholder={`Type ${locationSubTab} name`}
+              className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+            />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800"
+            >
+              <Plus className="h-4 w-4" />
+              Add {locationSubTab}
+            </button>
+          </form>
 
-          {/* Taluka Form & Table */}
-          {locationSubTab === "taluka" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <select
-                  value={newTaluka.districtId}
-                  onChange={(e) => setNewTaluka({ ...newTaluka, districtId: e.target.value })}
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  <option value="">Select District</option>
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={newTaluka.name}
-                  onChange={(e) => setNewTaluka({ ...newTaluka, name: e.target.value })}
-                  placeholder="Taluka Name (e.g. Karad)"
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {(locationSubTab === "state"
+              ? states
+              : locationSubTab === "district"
+                ? districts.filter((item) => item.stateId === selectedStateId)
+                : locationSubTab === "taluka"
+                  ? talukas.filter((item) => item.districtId === selectedDistrictId)
+                  : villages.filter((item) => item.talukaId === selectedTalukaId)
+            ).map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-800">
+                <span>{item.name}</span>
                 <button
-                  onClick={handleAddTaluka}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
+                  type="button"
+                  onClick={() =>
+                    void handleDeleteLocation(
+                      locationSubTab === "state"
+                        ? "states"
+                        : locationSubTab === "district"
+                          ? "districts"
+                          : locationSubTab === "taluka"
+                            ? "talukas"
+                            : "villages",
+                      item.id,
+                      item.name
+                    )
+                  }
+                  aria-label={`Delete ${locationSubTab} ${item.name}`}
+                  title={`Delete ${locationSubTab}`}
+                  className="rounded-md p-1.5 text-red-600 hover:bg-red-100 hover:text-red-800"
                 >
-                  Add Taluka
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {talukas.map((t) => (
-                  <div key={t.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800">
-                    {t.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Village Form & Table */}
-          {locationSubTab === "village" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <select
-                  value={newVillage.talukaId}
-                  onChange={(e) => setNewVillage({ ...newVillage, talukaId: e.target.value })}
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  <option value="">Select Taluka</option>
-                  {talukas.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={newVillage.name}
-                  onChange={(e) => setNewVillage({ ...newVillage, name: e.target.value })}
-                  placeholder="Village Name (e.g. Vadgaon, Kole)"
-                  className="text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                />
-                <button
-                  onClick={handleAddVillage}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
-                >
-                  Add Village
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {villages.map((v) => (
-                  <div key={v.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800">
-                    {v.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
+
     </div>
   );
 }
-

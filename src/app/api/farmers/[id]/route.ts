@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const db = getDb();
+    const db = await getDb();
     const farmer = db.farmers.find((f) => f.id === id);
 
     if (!farmer) {
@@ -29,7 +29,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const db = getDb();
+    const db = await getDb();
     const index = db.farmers.findIndex((f) => f.id === id);
 
     if (index === -1) {
@@ -51,7 +51,11 @@ export async function PUT(
         let fertilizer = p.fertilizerSchedule;
 
         if (!spray || spray.length === 0) {
-          const cloned = cloneMasterScheduleForPlot(p.cropName, p.sowingDate);
+          const cloned = cloneMasterScheduleForPlot(
+            p.cropName,
+            p.sowingDate,
+            db.masterSchedules
+          );
           spray = cloned.spray;
           fertilizer = cloned.fertilizer;
         }
@@ -89,7 +93,7 @@ export async function PUT(
       plots: updatedPlots,
     };
 
-    saveDb(db);
+    await saveDb(db);
 
     return NextResponse.json({
       success: true,
@@ -107,7 +111,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const db = getDb();
+    const db = await getDb();
     const index = db.farmers.findIndex((f) => f.id === id);
 
     if (index === -1) {
@@ -115,11 +119,10 @@ export async function DELETE(
     }
 
     db.farmers.splice(index, 1);
-    saveDb(db);
+    await saveDb(db);
 
     return NextResponse.json({ success: true, message: "Farmer deleted successfully" });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

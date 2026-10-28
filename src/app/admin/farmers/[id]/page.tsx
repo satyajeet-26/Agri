@@ -27,6 +27,11 @@ import {
   Lock,
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
+import {
+  dateFromCropDay,
+  formatScheduleDate,
+  getDateInIndia,
+} from "@/lib/schedule-date";
 import { WhatsAppModal } from "@/components/WhatsAppModal";
 import {
   generateSprayWhatsAppMessage,
@@ -65,6 +70,7 @@ export default function FarmerDetailsPage() {
   const [editingSprayId, setEditingSprayId] = useState<string | null>(null);
   const [sprayForm, setSprayForm] = useState<{
     day: number;
+    scheduledDate: string;
     time: ScheduleTime;
     medicineId: string;
     medicineName: string;
@@ -74,6 +80,7 @@ export default function FarmerDetailsPage() {
     note: string;
   }>({
     day: 10,
+    scheduledDate: getDateInIndia(),
     time: "Morning",
     medicineId: "",
     medicineName: "",
@@ -88,6 +95,7 @@ export default function FarmerDetailsPage() {
   const [editingFertId, setEditingFertId] = useState<string | null>(null);
   const [fertForm, setFertForm] = useState<{
     day: number;
+    scheduledDate: string;
     stage: string;
     fertilizerId: string;
     fertilizerName: string;
@@ -98,6 +106,7 @@ export default function FarmerDetailsPage() {
     note: string;
   }>({
     day: 15,
+    scheduledDate: getDateInIndia(),
     stage: "Vegetative Stage",
     fertilizerId: "",
     fertilizerName: "",
@@ -278,6 +287,7 @@ export default function FarmerDetailsPage() {
       item: {
         id: editingSprayId || undefined,
         day: Number(sprayForm.day),
+        scheduledDate: sprayForm.scheduledDate,
         time: sprayForm.time,
         medicineId: sprayForm.medicineId,
         medicineName: sprayForm.medicineName,
@@ -346,6 +356,7 @@ export default function FarmerDetailsPage() {
       item: {
         id: editingFertId || undefined,
         day: Number(fertForm.day),
+        scheduledDate: fertForm.scheduledDate,
         stage: fertForm.stage,
         fertilizerId: fertForm.fertilizerId,
         fertilizerName: fertForm.fertilizerName,
@@ -722,6 +733,7 @@ export default function FarmerDetailsPage() {
               <button
                 onClick={() => {
                   setEditingSprayId(null);
+                  setSprayForm((current) => ({ ...current, scheduledDate: getDateInIndia() }));
                   setShowSprayForm(true);
                 }}
                 className="inline-flex items-center space-x-1 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
@@ -733,6 +745,7 @@ export default function FarmerDetailsPage() {
               <button
                 onClick={() => {
                   setEditingFertId(null);
+                  setFertForm((current) => ({ ...current, scheduledDate: getDateInIndia() }));
                   setShowFertForm(true);
                 }}
                 className="inline-flex items-center space-x-1 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
@@ -752,7 +765,11 @@ export default function FarmerDetailsPage() {
                 <SprayCan className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p>No spray schedule entries for this plot yet.</p>
                 <button
-                  onClick={() => setShowSprayForm(true)}
+                  onClick={() => {
+                    setEditingSprayId(null);
+                    setSprayForm((current) => ({ ...current, scheduledDate: getDateInIndia() }));
+                    setShowSprayForm(true);
+                  }}
                   className="mt-2 text-emerald-700 font-bold hover:underline"
                 >
                   Click here to add one
@@ -764,6 +781,7 @@ export default function FarmerDetailsPage() {
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3">Crop Day</th>
+                      <th className="py-2.5 px-3">Scheduled Date</th>
                       <th className="py-2.5 px-3">Time</th>
                       <th className="py-2.5 px-3">Medicine (Prescribed)</th>
                       <th className="py-2.5 px-3">Dosage Quantity</th>
@@ -780,6 +798,12 @@ export default function FarmerDetailsPage() {
                           <span className="font-extrabold text-slate-900 px-2 py-1 rounded bg-slate-100">
                             Day {item.day}
                           </span>
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-700">
+                          {formatScheduleDate(
+                            item.scheduledDate || dateFromCropDay(selectedPlot.sowingDate, item.day) || getDateInIndia(),
+                            "en"
+                          )}
                         </td>
                         <td className="py-3 px-3">
                           <span
@@ -819,6 +843,10 @@ export default function FarmerDetailsPage() {
                               setEditingSprayId(item.id);
                               setSprayForm({
                                 day: item.day,
+                                scheduledDate:
+                                  item.scheduledDate ||
+                                  dateFromCropDay(selectedPlot.sowingDate, item.day) ||
+                                  getDateInIndia(),
                                 time: item.time,
                                 medicineId: item.medicineId,
                                 medicineName: item.medicineName,
@@ -859,7 +887,11 @@ export default function FarmerDetailsPage() {
                 <Wheat className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p>No fertilizer schedule entries for this plot yet.</p>
                 <button
-                  onClick={() => setShowFertForm(true)}
+                  onClick={() => {
+                    setEditingFertId(null);
+                    setFertForm((current) => ({ ...current, scheduledDate: getDateInIndia() }));
+                    setShowFertForm(true);
+                  }}
                   className="mt-2 text-emerald-700 font-bold hover:underline"
                 >
                   Click here to add one
@@ -871,6 +903,7 @@ export default function FarmerDetailsPage() {
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3">Crop Day</th>
+                      <th className="py-2.5 px-3">Scheduled Date</th>
                       <th className="py-2.5 px-3">Crop Stage</th>
                       <th className="py-2.5 px-3">Fertilizer Name</th>
                       <th className="py-2.5 px-3">Quantity</th>
@@ -887,6 +920,12 @@ export default function FarmerDetailsPage() {
                           <span className="font-extrabold text-slate-900 px-2 py-1 rounded bg-slate-100">
                             Day {item.day}
                           </span>
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-700">
+                          {formatScheduleDate(
+                            item.scheduledDate || dateFromCropDay(selectedPlot.sowingDate, item.day) || getDateInIndia(),
+                            "en"
+                          )}
                         </td>
                         <td className="py-3 px-3 font-semibold text-slate-800">
                           {item.stage}
@@ -920,6 +959,10 @@ export default function FarmerDetailsPage() {
                               setEditingFertId(item.id);
                               setFertForm({
                                 day: item.day,
+                                scheduledDate:
+                                  item.scheduledDate ||
+                                  dateFromCropDay(selectedPlot.sowingDate, item.day) ||
+                                  getDateInIndia(),
                                 stage: item.stage,
                                 fertilizerId: item.fertilizerId,
                                 fertilizerName: item.fertilizerName,
@@ -1012,29 +1055,50 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Scheduled Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={sprayForm.scheduledDate}
+                  onChange={(e) =>
+                    setSprayForm({ ...sprayForm, scheduledDate: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Medicine *
                 </label>
-                <select
-                  value={sprayForm.medicineId}
+                <input
+                  type="text"
+                  required
+                  list={`farmer-medicines-${farmer.id}`}
+                  value={sprayForm.medicineName}
                   onChange={(e) => {
-                    const m = medicines.find((x) => x.id === e.target.value);
-                    if (m) {
-                      setSprayForm({
-                        ...sprayForm,
-                        medicineId: m.id,
-                        medicineName: m.name,
-                        unit: m.unitShortName,
-                      });
-                    }
+                    const medicineName = e.target.value;
+                    const medicine = medicines.find(
+                      (item) => item.name.toLowerCase() === medicineName.trim().toLowerCase()
+                    );
+                    setSprayForm({
+                      ...sprayForm,
+                      medicineName,
+                      medicineId: medicine?.id || "",
+                      unit: medicine?.unitShortName || sprayForm.unit,
+                    });
                   }}
+                  placeholder="Type a medicine name or choose a suggestion"
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-                >
+                />
+                <datalist id={`farmer-medicines-${farmer.id}`}>
                   {medicines.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.companyName})
+                    <option key={m.id} value={m.name}>
+                      {m.companyName}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1052,9 +1116,16 @@ export default function FarmerDetailsPage() {
                       }
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     />
-                    <span className="inline-flex items-center px-2.5 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs font-bold border border-slate-200">
-                      {sprayForm.unit}
-                    </span>
+                    <input
+                      type="text"
+                      required
+                      aria-label="Dosage unit"
+                      value={sprayForm.unit}
+                      onChange={(e) =>
+                        setSprayForm({ ...sprayForm, unit: e.target.value })
+                      }
+                      className="w-24 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs font-mono font-bold text-slate-700"
+                    />
                   </div>
                 </div>
 
@@ -1167,29 +1238,51 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Scheduled Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={fertForm.scheduledDate}
+                  onChange={(e) =>
+                    setFertForm({ ...fertForm, scheduledDate: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Fertilizer *
                 </label>
-                <select
-                  value={fertForm.fertilizerId}
+                <input
+                  type="text"
+                  required
+                  list={`farmer-fertilizers-${farmer.id}`}
+                  value={fertForm.fertilizerName}
                   onChange={(e) => {
-                    const f = fertilizers.find((x) => x.id === e.target.value);
-                    if (f) {
-                      setFertForm({
-                        ...fertForm,
-                        fertilizerId: f.id,
-                        fertilizerName: f.name,
-                        unit: f.unit,
-                      });
-                    }
+                    const fertilizerName = e.target.value;
+                    const fertilizer = fertilizers.find(
+                      (item) =>
+                        item.name.toLowerCase() === fertilizerName.trim().toLowerCase()
+                    );
+                    setFertForm({
+                      ...fertForm,
+                      fertilizerName,
+                      fertilizerId: fertilizer?.id || "",
+                      unit: fertilizer?.unit || fertForm.unit,
+                    });
                   }}
+                  placeholder="Type a fertilizer name or choose a suggestion"
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-                >
+                />
+                <datalist id={`farmer-fertilizers-${farmer.id}`}>
                   {fertilizers.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} ({f.company}) - {f.type}
+                    <option key={f.id} value={f.name}>
+                      {f.company} - {f.type}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1207,9 +1300,16 @@ export default function FarmerDetailsPage() {
                       }
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     />
-                    <span className="inline-flex items-center px-2.5 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs font-bold border border-slate-200">
-                      {fertForm.unit}
-                    </span>
+                    <input
+                      type="text"
+                      required
+                      aria-label="Fertilizer quantity unit"
+                      value={fertForm.unit}
+                      onChange={(e) =>
+                        setFertForm({ ...fertForm, unit: e.target.value })
+                      }
+                      className="w-24 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs font-mono font-bold text-slate-700"
+                    />
                   </div>
                 </div>
 

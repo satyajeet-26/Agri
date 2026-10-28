@@ -19,6 +19,7 @@ import {
   MapPin,
   Tag,
   Flame,
+  Bell,
 } from "lucide-react";
 import { useLanguage } from "./LanguageContext";
 
@@ -64,6 +65,12 @@ export function Sidebar() {
       icon: Users,
       href: "/admin/farmers",
       badge: "Plots & Custom",
+    },
+    {
+      title: "6. Schedule Reminders",
+      icon: Bell,
+      href: "/admin/whatsapp-notifications",
+      badge: "Manual Send",
     },
   ];
 
@@ -176,4 +183,3 @@ export function Sidebar() {
     </>
   );
 }
-

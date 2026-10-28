@@ -3,7 +3,7 @@ import { getDb, saveDb } from "@/lib/db";
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = await getDb();
     return NextResponse.json({
       success: true,
       data: {
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await getDb();
     const { section, data } = body;
 
     if (section === "companies") {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       db.fertilizers = data;
     }
 
-    saveDb(db);
+    await saveDb(db);
 
     return NextResponse.json({
       success: true,
@@ -44,4 +44,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

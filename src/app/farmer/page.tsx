@@ -20,6 +20,12 @@ import {
   Filter,
 } from "lucide-react";
 import { formatArea } from "@/lib/area";
+import {
+  formatScheduleDate,
+  getDateInIndia,
+  getFertilizerScheduledDate,
+  getSprayScheduledDate,
+} from "@/lib/schedule-date";
 import { useLanguage } from "@/components/LanguageContext";
 import { Farmer, Plot, PersonalizedSprayItem, PersonalizedFertilizerItem, ShopProfile } from "@/types";
 
@@ -94,8 +100,27 @@ export default function FarmerPanelPage() {
 
   const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
 
-  const todaysSprays = selectedPlot?.spraySchedule || [];
-  const todaysFertilizers = selectedPlot?.fertilizerSchedule || [];
+  const todayDate = getDateInIndia();
+  const allSprays = selectedPlot?.spraySchedule || [];
+  const allFertilizers = selectedPlot?.fertilizerSchedule || [];
+  const todaysSprays = selectedPlot
+    ? allSprays.filter((item) => getSprayScheduledDate(selectedPlot, item) === todayDate)
+    : [];
+  const todaysFertilizers = selectedPlot
+    ? allFertilizers.filter((item) => getFertilizerScheduledDate(selectedPlot, item) === todayDate)
+    : [];
+  const visibleSprays =
+    activeFilter === "today"
+      ? todaysSprays
+      : activeFilter === "fertilizer"
+        ? []
+        : allSprays;
+  const visibleFertilizers =
+    activeFilter === "today"
+      ? todaysFertilizers
+      : activeFilter === "spray"
+        ? []
+        : allFertilizers;
   const hasScheduleToday = todaysSprays.length > 0 || todaysFertilizers.length > 0;
 
   return (
@@ -255,7 +280,7 @@ export default function FarmerPanelPage() {
                 </div>
               </div>
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                Day-based plan
+                {formatScheduleDate(todayDate, lang)}
               </span>
             </div>
 
@@ -283,7 +308,7 @@ export default function FarmerPanelPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded bg-emerald-700 text-white">
-                        {lang === "mr" ? "आजची फवारणी" : "Today's Spray"} • Day {item.day}
+                        {lang === "mr" ? "आजची फवारणी" : "Today's Spray"} • {formatScheduleDate(todayDate, lang)}
                       </span>
                       <span className="text-xs font-bold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded">
                         {item.time === "Morning" ? "सकाळ (Morning)" : "संध्याकाळ (Evening)"}
@@ -329,7 +354,7 @@ export default function FarmerPanelPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded bg-emerald-800 text-white">
-                        {lang === "mr" ? "आजचे खत व्यवस्थापन" : "Today's Fertilizer"} • Day {item.day}
+                        {lang === "mr" ? "आजचे खत व्यवस्थापन" : "Today's Fertilizer"} • {formatScheduleDate(todayDate, lang)}
                       </span>
                       <span className="text-xs font-bold text-emerald-900 bg-emerald-200/80 px-2 py-0.5 rounded">
                         {item.stage}
@@ -427,8 +452,7 @@ export default function FarmerPanelPage() {
             {/* List */}
             <div className="space-y-3">
               {/* Sprays */}
-              {(activeFilter === "all" || activeFilter === "spray") &&
-                selectedPlot.spraySchedule.map((spray) => (
+              {visibleSprays.map((spray) => (
                   <div
                     key={spray.id}
                     className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
@@ -437,6 +461,12 @@ export default function FarmerPanelPage() {
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-900">
                           {lang === "mr" ? `${spray.day} वा दिवस` : `Day ${spray.day}`}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold">
+                          {formatScheduleDate(
+                            getSprayScheduledDate(selectedPlot, spray) || todayDate,
+                            lang
+                          )}
                         </span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
                           {spray.time}
@@ -464,8 +494,7 @@ export default function FarmerPanelPage() {
                 ))}
 
               {/* Fertilizers */}
-              {(activeFilter === "all" || activeFilter === "fertilizer") &&
-                selectedPlot.fertilizerSchedule.map((fert) => (
+              {visibleFertilizers.map((fert) => (
                   <div
                     key={fert.id}
                     className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
@@ -474,6 +503,12 @@ export default function FarmerPanelPage() {
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">
                           {lang === "mr" ? `${fert.day} वा दिवस` : `Day ${fert.day}`}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold">
+                          {formatScheduleDate(
+                            getFertilizerScheduledDate(selectedPlot, fert) || todayDate,
+                            lang
+                          )}
                         </span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
                           {fert.stage}
@@ -506,4 +541,3 @@ export default function FarmerPanelPage() {
     </div>
   );
 }
-

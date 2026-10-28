@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getDb, saveDb, cloneMasterScheduleForPlot } from "@/lib/db";
 import { PersonalizedSprayItem, PersonalizedFertilizerItem } from "@/types";
+import {
+  getFertilizerScheduledDate,
+  getSprayScheduledDate,
+  isValidScheduleDate,
+} from "@/lib/schedule-date";
 
 export async function PUT(
   req: Request,
@@ -9,7 +14,7 @@ export async function PUT(
   try {
     const { id, plotId } = await params;
     const body = await req.json();
-    const db = getDb();
+    const db = await getDb();
 
     const farmer = db.farmers.find((f) => f.id === id);
     if (!farmer) {
@@ -32,11 +37,26 @@ export async function PUT(
 
     const { action, item, itemId, type } = body;
 
+    if (
+      ["ADD_SPRAY", "UPDATE_SPRAY", "ADD_FERTILIZER", "UPDATE_FERTILIZER"].includes(action) &&
+      item?.scheduledDate !== undefined &&
+      !isValidScheduleDate(item.scheduledDate)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Scheduled date must be a valid calendar date (YYYY-MM-DD)." },
+        { status: 400 }
+      );
+    }
+
     if (action === "RESET_TO_MASTER") {
-      const cloned = cloneMasterScheduleForPlot(plot.cropName, plot.sowingDate);
+      const cloned = cloneMasterScheduleForPlot(
+        plot.cropName,
+        plot.sowingDate,
+        db.masterSchedules
+      );
       plot.spraySchedule = cloned.spray;
       plot.fertilizerSchedule = cloned.fertilizer;
-      saveDb(db);
+      await saveDb(db);
       return NextResponse.json({
         success: true,
         message: "Plot schedule reset to master template",
@@ -48,6 +68,7 @@ export async function PUT(
       const newItem: PersonalizedSprayItem = {
         id: `psp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         day: Number(item.day),
+        scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
         time: item.time || "Morning",
         medicineId: item.medicineId || "",
         medicineName: item.medicineName || "",
@@ -59,7 +80,11 @@ export async function PUT(
       };
       plot.spraySchedule.push(newItem);
       // Sort by day ascending
-      plot.spraySchedule.sort((a, b) => a.day - b.day);
+      plot.spraySchedule.sort((a, b) =>
+        (getSprayScheduledDate(plot, a) || "").localeCompare(
+          getSprayScheduledDate(plot, b) || ""
+        )
+      );
     } else if (action === "UPDATE_SPRAY") {
       const index = plot.spraySchedule.findIndex((s) => s.id === item.id);
       if (index !== -1) {
@@ -67,8 +92,13 @@ export async function PUT(
           ...plot.spraySchedule[index],
           ...item,
           day: Number(item.day),
+          scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
         };
-        plot.spraySchedule.sort((a, b) => a.day - b.day);
+        plot.spraySchedule.sort((a, b) =>
+          (getSprayScheduledDate(plot, a) || "").localeCompare(
+            getSprayScheduledDate(plot, b) || ""
+          )
+        );
       }
     } else if (action === "DELETE_SPRAY") {
       plot.spraySchedule = plot.spraySchedule.filter((s) => s.id !== itemId);
@@ -76,6 +106,7 @@ export async function PUT(
       const newItem: PersonalizedFertilizerItem = {
         id: `pfr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         day: Number(item.day),
+        scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
         stage: item.stage || "Growth",
         fertilizerId: item.fertilizerId || "",
         fertilizerName: item.fertilizerName || "",
@@ -87,7 +118,11 @@ export async function PUT(
         isCompleted: false,
       };
       plot.fertilizerSchedule.push(newItem);
-      plot.fertilizerSchedule.sort((a, b) => a.day - b.day);
+      plot.fertilizerSchedule.sort((a, b) =>
+        (getFertilizerScheduledDate(plot, a) || "").localeCompare(
+          getFertilizerScheduledDate(plot, b) || ""
+        )
+      );
     } else if (action === "UPDATE_FERTILIZER") {
       const index = plot.fertilizerSchedule.findIndex((f) => f.id === item.id);
       if (index !== -1) {
@@ -95,8 +130,13 @@ export async function PUT(
           ...plot.fertilizerSchedule[index],
           ...item,
           day: Number(item.day),
+          scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
         };
-        plot.fertilizerSchedule.sort((a, b) => a.day - b.day);
+        plot.fertilizerSchedule.sort((a, b) =>
+          (getFertilizerScheduledDate(plot, a) || "").localeCompare(
+            getFertilizerScheduledDate(plot, b) || ""
+          )
+        );
       }
     } else if (action === "DELETE_FERTILIZER") {
       plot.fertilizerSchedule = plot.fertilizerSchedule.filter((f) => f.id !== itemId);
@@ -110,15 +150,15 @@ export async function PUT(
       }
     }
 
-    saveDb(db);
+    await saveDb(db);
 
     return NextResponse.json({
       success: true,
       message: "Personalized schedule updated successfully for this plot only",
       plot,
     });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unexpected error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-

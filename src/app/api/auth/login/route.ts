@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const db = getDb();
+    const db = await getDb();
 
     // Admin login
     if (role === "ADMIN" || username.includes("@")) {
@@ -75,4 +75,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-

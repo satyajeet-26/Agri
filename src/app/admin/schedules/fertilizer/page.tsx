@@ -120,18 +120,6 @@ export default function FertilizerMasterPage() {
     }
   };
 
-  const handleFertilizerChange = (fertId: string) => {
-    const f = fertilizers.find((x) => x.id === fertId);
-    if (f) {
-      setForm((prev) => ({
-        ...prev,
-        fertilizerId: f.id,
-        fertilizerName: f.name,
-        unit: f.unit,
-      }));
-    }
-  };
-
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCrop) return;
@@ -366,17 +354,34 @@ export default function FertilizerMasterPage() {
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Select Fertilizer *
             </label>
-            <select
-              value={form.fertilizerId}
-              onChange={(e) => handleFertilizerChange(e.target.value)}
+            <input
+              type="text"
+              required
+              list="fertilizer-master-options"
+              value={form.fertilizerName}
+              onChange={(e) => {
+                const fertilizerName = e.target.value;
+                const fertilizer = fertilizers.find(
+                  (candidate) =>
+                    candidate.name.toLowerCase() === fertilizerName.trim().toLowerCase()
+                );
+                setForm((current) => ({
+                  ...current,
+                  fertilizerName,
+                  fertilizerId: fertilizer?.id || "",
+                  unit: fertilizer?.unit || current.unit,
+                }));
+              }}
+              placeholder="Type a fertilizer name or select a suggestion"
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
-            >
+            />
+            <datalist id="fertilizer-master-options">
               {fertilizers.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name} ({f.company}) - {f.type}
+                <option key={f.id} value={f.name}>
+                  {f.company} - {f.type}
                 </option>
               ))}
-            </select>
+            </datalist>
           </div>
 
           <div>
@@ -392,9 +397,14 @@ export default function FertilizerMasterPage() {
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                 placeholder="50"
               />
-              <span className="inline-flex items-center px-2.5 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs font-bold border border-slate-200">
-                {form.unit}
-              </span>
+              <input
+                type="text"
+                required
+                aria-label="Fertilizer quantity unit"
+                value={form.unit}
+                onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                className="w-20 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs font-mono font-bold text-slate-700"
+              />
             </div>
           </div>
 
@@ -521,4 +531,3 @@ export default function FertilizerMasterPage() {
     </div>
   );
 }
-

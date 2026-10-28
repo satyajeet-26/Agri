@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { DatabaseSchema, MasterCropSchedule } from "@/types";
+import {
+  DatabaseSchema,
+  PersonalizedFertilizerItem,
+  PersonalizedSprayItem,
+} from "@/types";
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 const DB_FILE = path.join(DATA_DIR, "krushi_db.json");
@@ -33,30 +37,10 @@ const INITIAL_DATABASE: DatabaseSchema = {
     { id: "u-kg", unitName: "Kilogram", shortName: "kg" },
     { id: "u-bag", unitName: "Bag (५० किगो बॅग)", shortName: "bag" },
   ],
-  states: [
-    { id: "st-mh", name: "Maharashtra (महाराष्ट्र)" },
-    { id: "st-ka", name: "Karnataka (कर्नाटक)" },
-    { id: "st-gj", name: "Gujarat (गुजरात)" },
-  ],
-  districts: [
-    { id: "dt-satara", stateId: "st-mh", name: "Satara (सातारा)" },
-    { id: "dt-pune", stateId: "st-mh", name: "Pune (पुणे)" },
-    { id: "dt-kolhapur", stateId: "st-mh", name: "Kolhapur (कोल्हापूर)" },
-    { id: "dt-sangli", stateId: "st-mh", name: "Sangli (सांगली)" },
-  ],
-  talukas: [
-    { id: "tk-karad", districtId: "dt-satara", name: "Karad (कराड)" },
-    { id: "tk-phaltan", districtId: "dt-satara", name: "Phaltan (फलटण)" },
-    { id: "tk-baramati", districtId: "dt-pune", name: "Baramati (बारामती)" },
-    { id: "tk-walwa", districtId: "dt-sangli", name: "Walwa (वाळवा)" },
-  ],
-  villages: [
-    { id: "vg-kole", talukaId: "tk-karad", name: "Kole (कोळे)" },
-    { id: "vg-vadgaon", talukaId: "tk-karad", name: "Vadgaon (वडगाव)" },
-    { id: "vg-ogalewadi", talukaId: "tk-karad", name: "Ogalewadi (ओगलेवाडी)" },
-    { id: "vg-malharpeth", talukaId: "tk-karad", name: "Malharpeth (मल्हारपेठ)" },
-    { id: "vg-koregaon", talukaId: "tk-karad", name: "Kale (काले)" },
-  ],
+  states: [],
+  districts: [],
+  talukas: [],
+  villages: [],
   medicineCompanies: [
     { id: "mc-syngenta", name: "Syngenta India" },
     { id: "mc-bayer", name: "Bayer CropScience" },
@@ -435,10 +419,10 @@ const INITIAL_DATABASE: DatabaseSchema = {
       openingBalanceType: "Debit",
       openingBalance: 4500, // ₹4500 udhari
       registrationDate: "2026-09-10",
-      state: "Maharashtra (महाराष्ट्र)",
-      district: "Satara (सातारा)",
-      taluka: "Karad (कराड)",
-      village: "Demo Village",
+      state: "",
+      district: "",
+      taluka: "",
+      village: "",
       username: "ramesh",
       passwordHash: "1234",
       plainPassword: "1234",
@@ -564,10 +548,10 @@ const INITIAL_DATABASE: DatabaseSchema = {
       openingBalanceType: "Credit",
       openingBalance: 1200,
       registrationDate: "2026-10-18",
-      state: "Maharashtra (महाराष्ट्र)",
-      district: "Satara (सातारा)",
-      taluka: "Karad (कराड)",
-      village: "Demo Village",
+      state: "",
+      district: "",
+      taluka: "",
+      village: "",
       username: "suresh",
       passwordHash: "1234",
       plainPassword: "1234",
@@ -651,25 +635,136 @@ const INITIAL_DATABASE: DatabaseSchema = {
   ],
 };
 
-// Database helper functions
-export function getDb(): DatabaseSchema {
+const SUPABASE_TABLE = "krushi_app_state";
+
+function getSupabaseConfig() {
+  const url = process.env.SUPABASE_URL?.replace(/\/+$/, "");
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url && !serviceRoleKey) {
+    return null;
+  }
+  if (!url || !serviceRoleKey) {
+    throw new Error("Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to use Supabase.");
+  }
+
+  return { url, serviceRoleKey };
+}
+
+function cloneInitialDatabase(): DatabaseSchema {
+  return JSON.parse(JSON.stringify(INITIAL_DATABASE)) as DatabaseSchema;
+}
+
+async function supabaseRequest(
+  url: string,
+  serviceRoleKey: string,
+  pathAndQuery: string,
+  init?: RequestInit
+): Promise<Response> {
+  const response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
+    ...init,
+    cache: "no-store",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    console.error(`Supabase request failed (${response.status}):`, details);
+    throw new Error(`Supabase database request failed (${response.status}).`);
+  }
+
+  return response;
+}
+
+async function getSupabaseDatabase(
+  url: string,
+  serviceRoleKey: string
+): Promise<DatabaseSchema | null> {
+  const response = await supabaseRequest(
+    url,
+    serviceRoleKey,
+    `${SUPABASE_TABLE}?id=eq.1&select=state`
+  );
+  const rows = (await response.json()) as { state: DatabaseSchema }[];
+  const state = rows[0]?.state;
+
+  if (state && typeof state === "object" && Array.isArray(state.farmers)) {
+    return state;
+  }
+  if (rows.length > 0) {
+    throw new Error("Supabase database state is invalid.");
+  }
+  return null;
+}
+
+async function saveSupabaseDatabase(
+  url: string,
+  serviceRoleKey: string,
+  data: DatabaseSchema
+): Promise<void> {
+  await supabaseRequest(url, serviceRoleKey, `${SUPABASE_TABLE}?on_conflict=id`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({ id: 1, state: data }),
+  });
+}
+
+function getLocalDatabase(): DatabaseSchema {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(INITIAL_DATABASE, null, 2), "utf-8");
-      return INITIAL_DATABASE;
+      const initialDatabase = cloneInitialDatabase();
+      fs.writeFileSync(DB_FILE, JSON.stringify(initialDatabase, null, 2), "utf-8");
+      return initialDatabase;
     }
     const raw = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(raw);
+    return JSON.parse(raw) as DatabaseSchema;
   } catch (error) {
     console.error("Error reading database file:", error);
-    return INITIAL_DATABASE;
+    throw new Error("Failed to read the local database.");
   }
 }
 
-export function saveDb(data: DatabaseSchema): void {
+export async function getDb(): Promise<DatabaseSchema> {
+  const supabase = getSupabaseConfig();
+  if (supabase) {
+    const existing = await getSupabaseDatabase(supabase.url, supabase.serviceRoleKey);
+    if (existing) {
+      return existing;
+    }
+
+    const initialDatabase = cloneInitialDatabase();
+    await saveSupabaseDatabase(supabase.url, supabase.serviceRoleKey, initialDatabase);
+    return initialDatabase;
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error("Supabase is required in Vercel. Configure the Supabase environment variables.");
+  }
+  const localDatabase = getLocalDatabase();
+  return localDatabase;
+}
+
+export async function saveDb(data: DatabaseSchema): Promise<void> {
+  const supabase = getSupabaseConfig();
+  if (supabase) {
+    await saveSupabaseDatabase(supabase.url, supabase.serviceRoleKey, data);
+    return;
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error("Supabase is required in Vercel. Configure the Supabase environment variables.");
+  }
+
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -677,17 +772,17 @@ export function saveDb(data: DatabaseSchema): void {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch (error) {
     console.error("Error writing database file:", error);
-    throw new Error("Failed to save database");
+    throw new Error("Failed to save the local database.");
   }
 }
 
 // Clone Master Schedule for a Plot
 export function cloneMasterScheduleForPlot(
   cropName: string,
-  sowingDateStr: string
-): { spray: any[]; fertilizer: any[] } {
-  const db = getDb();
-  const master = db.masterSchedules[cropName];
+  sowingDateStr: string,
+  masterSchedules: DatabaseSchema["masterSchedules"]
+): { spray: PersonalizedSprayItem[]; fertilizer: PersonalizedFertilizerItem[] } {
+  const master = masterSchedules[cropName];
 
   if (!master) {
     return { spray: [], fertilizer: [] };

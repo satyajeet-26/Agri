@@ -39,6 +39,7 @@ export default function FarmerMasterPage() {
   const [crops, setCrops] = useState<string[]>(["Tomato", "Sugarcane", "Ginger"]);
 
   const [loading, setLoading] = useState(true);
+  const [savingFarmer, setSavingFarmer] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,20 +103,29 @@ export default function FarmerMasterPage() {
       if (jsonFarmers.success) setFarmers(jsonFarmers.farmers || []);
 
       if (jsonGen.success) {
-        setStates(jsonGen.data.states || []);
-        setDistricts(jsonGen.data.districts || []);
-        setTalukas(jsonGen.data.talukas || []);
-        setVillages(jsonGen.data.villages || []);
+        const locationData = jsonGen.data;
+        setStates(locationData.states || []);
+        setDistricts(locationData.districts || []);
+        setTalukas(locationData.talukas || []);
+        setVillages(locationData.villages || []);
 
-        if (jsonGen.data.states?.[0]) {
-          setForm((prev) => ({
-            ...prev,
-            state: jsonGen.data.states[0].name,
-            district: jsonGen.data.districts[0]?.name || "",
-            taluka: jsonGen.data.talukas[0]?.name || "",
-            village: jsonGen.data.villages[0]?.name || "",
-          }));
-        }
+        const initialState = locationData.states?.[0];
+        const initialDistrict = locationData.districts?.find(
+          (district: DistrictMaster) => district.stateId === initialState?.id
+        );
+        const initialTaluka = locationData.talukas?.find(
+          (taluka: TalukaMaster) => taluka.districtId === initialDistrict?.id
+        );
+        const initialVillage = locationData.villages?.find(
+          (village: VillageMaster) => village.talukaId === initialTaluka?.id
+        );
+        setForm((current) => ({
+          ...current,
+          state: initialState?.name || "",
+          district: initialDistrict?.name || "",
+          taluka: initialTaluka?.name || "",
+          village: initialVillage?.name || "",
+        }));
       }
 
       if (jsonSched.success && jsonSched.masterSchedules) {
@@ -143,7 +153,7 @@ export default function FarmerMasterPage() {
 
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+    setTimeout(() => setMessage(null), 5000);
   };
 
   // Add plot row in form
@@ -181,11 +191,13 @@ export default function FarmerMasterPage() {
   // Submit Add Farmer
   const handleCreateFarmer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingFarmer) return;
     if (!form.name || !form.mobile) {
       showNotification("error", "Farmer name and mobile number are required");
       return;
     }
 
+    setSavingFarmer(true);
     try {
       const res = await fetch("/api/farmers", {
         method: "POST",
@@ -193,10 +205,13 @@ export default function FarmerMasterPage() {
         body: JSON.stringify(form),
       });
       const json = await res.json();
-      if (json.success) {
-        setFarmers([json.farmer, ...farmers]);
+      if (res.ok && json.success) {
+        setFarmers((currentFarmers) => [json.farmer, ...currentFarmers]);
         setShowAddModal(false);
-        showNotification("success", "Farmer registered and plot schedules cloned successfully!");
+        showNotification(
+          "success",
+          `Farmer and plots saved. Login username: ${json.farmer.username}`
+        );
         // Reset form
         setForm({
           name: "",
@@ -206,9 +221,20 @@ export default function FarmerMasterPage() {
           openingBalance: 0,
           registrationDate: getTodayDateValue(),
           state: states[0]?.name || "",
-          district: districts[0]?.name || "",
-          taluka: talukas[0]?.name || "",
-          village: villages[0]?.name || "",
+          district:
+            districts.find((district) => district.stateId === states[0]?.id)?.name || "",
+          taluka:
+            talukas.find((taluka) =>
+              districts.find((district) => district.stateId === states[0]?.id)?.id ===
+              taluka.districtId
+            )?.name || "",
+          village:
+            villages.find((village) =>
+              talukas.find((taluka) =>
+                districts.find((district) => district.stateId === states[0]?.id)?.id ===
+                taluka.districtId
+              )?.id === village.talukaId
+            )?.name || "",
           username: "",
           password: "1234",
           plots: [
@@ -222,10 +248,15 @@ export default function FarmerMasterPage() {
           ],
         });
       } else {
-        showNotification("error", json.message || "Failed to add farmer");
+        showNotification(
+          "error",
+          json.message || json.error || `Failed to add farmer (HTTP ${res.status})`
+        );
       }
-    } catch (err) {
+    } catch {
       showNotification("error", "Network error while saving farmer");
+    } finally {
+      setSavingFarmer(false);
     }
   };
 
@@ -251,7 +282,14 @@ export default function FarmerMasterPage() {
       f.village.toLowerCase().includes(searchQuery.toLowerCase()) ||
       f.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
+  const selectedStateId = states.find((state) => state.name === form.state)?.id;
+  const formDistricts = districts.filter((district) => district.stateId === selectedStateId);
+  const selectedDistrictId = formDistricts.find(
+    (district) => district.name === form.district
+  )?.id;
+  const formTalukas = talukas.filter((taluka) => taluka.districtId === selectedDistrictId);
+  const selectedTalukaId = formTalukas.find((taluka) => taluka.name === form.taluka)?.id;
+  const formVillages = villages.filter((village) => village.talukaId === selectedTalukaId);
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -262,6 +300,23 @@ export default function FarmerMasterPage() {
 
   return (
     <div className="space-y-6">
+      {message && (
+        <div
+          role={message.type === "success" ? "status" : "alert"}
+          className={`fixed right-4 top-4 z-[60] flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg ${
+            message.type === "success"
+              ? "border-emerald-300 bg-emerald-100 text-emerald-900"
+              : "border-red-300 bg-red-100 text-red-900"
+          }`}
+        >
+          {message.type === "success" ? (
+            <CheckCircle className="h-5 w-5 shrink-0" />
+          ) : (
+            <AlertCircle className="h-5 w-5 shrink-0" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -274,23 +329,6 @@ export default function FarmerMasterPage() {
         </div>
 
         <div className="flex items-center space-x-2">
-          {message && (
-            <div
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 ${
-                message.type === "success"
-                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                  : "bg-red-100 text-red-800 border border-red-300"
-              }`}
-            >
-              {message.type === "success" ? (
-                <CheckCircle className="w-4 h-4" />
-              ) : (
-                <AlertCircle className="w-4 h-4" />
-              )}
-              <span>{message.text}</span>
-            </div>
-          )}
-
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all hover:scale-102"
@@ -428,7 +466,16 @@ export default function FarmerMasterPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateFarmer} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            <form
+              onSubmit={handleCreateFarmer}
+              onInvalid={() =>
+                showNotification(
+                  "error",
+                  "Please complete all required fields and check any highlighted values."
+                )
+              }
+              className="p-6 space-y-6 max-h-[80vh] overflow-y-auto"
+            >
               {/* 1. Personal Information */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 pb-1 border-b border-slate-200">
@@ -525,67 +572,91 @@ export default function FarmerMasterPage() {
                 </div>
               </div>
 
-              {/* 2. Location Information (State -> District -> Taluka -> Village) */}
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 pb-1 border-b border-slate-200">
-                  2. Location Details (गाव व पत्ता)
+                <h4 className="mb-3 border-b border-slate-200 pb-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
+                  2. Location Details (optional)
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">State</label>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <label className="text-xs font-semibold text-slate-700">
+                    State
                     <select
                       value={form.state}
-                      onChange={(e) => setForm({ ...form, state: e.target.value })}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                      onChange={(e) => {
+                        const stateName = e.target.value;
+                        const state = states.find((item) => item.name === stateName);
+                        const district = districts.find((item) => item.stateId === state?.id);
+                        const taluka = talukas.find((item) => item.districtId === district?.id);
+                        const village = villages.find((item) => item.talukaId === taluka?.id);
+                        setForm({
+                          ...form,
+                          state: stateName,
+                          district: district?.name || "",
+                          taluka: taluka?.name || "",
+                          village: village?.name || "",
+                        });
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      {states.map((s) => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
+                      <option value="">Select State</option>
+                      {states.map((state) => <option key={state.id} value={state.name}>{state.name}</option>)}
                     </select>
-                  </div>
+                  </label>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">District</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    District
                     <select
                       value={form.district}
-                      onChange={(e) => setForm({ ...form, district: e.target.value })}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                      onChange={(e) => {
+                        const districtName = e.target.value;
+                        const district = formDistricts.find((item) => item.name === districtName);
+                        const taluka = talukas.find((item) => item.districtId === district?.id);
+                        const village = villages.find((item) => item.talukaId === taluka?.id);
+                        setForm({
+                          ...form,
+                          district: districtName,
+                          taluka: taluka?.name || "",
+                          village: village?.name || "",
+                        });
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      {districts.map((d) => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
-                      ))}
+                      <option value="">Select District</option>
+                      {formDistricts.map((district) => <option key={district.id} value={district.name}>{district.name}</option>)}
                     </select>
-                  </div>
+                  </label>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Taluka</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    Taluka
                     <select
                       value={form.taluka}
-                      onChange={(e) => setForm({ ...form, taluka: e.target.value })}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                      onChange={(e) => {
+                        const talukaName = e.target.value;
+                        const taluka = formTalukas.find((item) => item.name === talukaName);
+                        const village = villages.find((item) => item.talukaId === taluka?.id);
+                        setForm({ ...form, taluka: talukaName, village: village?.name || "" });
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      {talukas.map((t) => (
-                        <option key={t.id} value={t.name}>{t.name}</option>
-                      ))}
+                      <option value="">Select Taluka</option>
+                      {formTalukas.map((taluka) => <option key={taluka.id} value={taluka.name}>{taluka.name}</option>)}
                     </select>
-                  </div>
+                  </label>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Village *</label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    Village
                     <select
                       value={form.village}
                       onChange={(e) => setForm({ ...form, village: e.target.value })}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      {villages.map((v) => (
-                        <option key={v.id} value={v.name}>{v.name}</option>
-                      ))}
+                      <option value="">Select Village</option>
+                      {formVillages.map((village) => <option key={village.id} value={village.name}>{village.name}</option>)}
                     </select>
-                  </div>
+                  </label>
                 </div>
               </div>
 
-              {/* 3. Website Login Information */}
+              {/* 2. Website Login Information */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 pb-1 border-b border-slate-200">
                   3. Farmer Website Login Credentials
@@ -593,14 +664,13 @@ export default function FarmerMasterPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Website Username (युझरनेम) *
+                      Website Username (युझरनेम, optional)
                     </label>
                     <input
                       type="text"
-                      required
                       value={form.username}
                       onChange={(e) => setForm({ ...form, username: e.target.value })}
-                      placeholder="e.g. ramesh or 9822114455"
+                      placeholder="Leave blank to generate automatically"
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     />
                   </div>
@@ -740,9 +810,10 @@ export default function FarmerMasterPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md"
+                  disabled={savingFarmer}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold shadow-md"
                 >
-                  Save & Register Farmer
+                  {savingFarmer ? "Saving..." : "Save & Register Farmer"}
                 </button>
               </div>
             </form>
@@ -752,4 +823,3 @@ export default function FarmerMasterPage() {
     </div>
   );
 }
-

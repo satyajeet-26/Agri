@@ -36,19 +36,18 @@ export default function SprayMasterPage() {
   const [form, setForm] = useState<{
     day: number;
     time: ScheduleTime;
-    medicineId: string;
-    medicineName: string;
-    quantity: string;
-    unit: string;
+    medicines: {
+      medicineId: string;
+      medicineName: string;
+      quantity: string;
+      unit: string;
+    }[];
     waterQuantity: string;
     note: string;
   }>({
     day: 10,
     time: "Morning",
-    medicineId: "",
-    medicineName: "",
-    quantity: "20",
-    unit: "ml",
+    medicines: [{ medicineId: "", medicineName: "", quantity: "20", unit: "ml" }],
     waterQuantity: "15 Litres",
     note: "",
   });
@@ -75,9 +74,16 @@ export default function SprayMasterPage() {
         if (jsonMed.data.medicines[0]) {
           setForm((prev) => ({
             ...prev,
-            medicineId: jsonMed.data.medicines[0].id,
-            medicineName: jsonMed.data.medicines[0].name,
-            unit: jsonMed.data.medicines[0].unitShortName,
+            medicines: prev.medicines.map((item, index) =>
+              index === 0
+                ? {
+                    ...item,
+                    medicineId: jsonMed.data.medicines[0].id,
+                    medicineName: jsonMed.data.medicines[0].name,
+                    unit: jsonMed.data.medicines[0].unitShortName,
+                  }
+                : item
+            ),
           }));
         }
       }
@@ -121,21 +127,72 @@ export default function SprayMasterPage() {
     }
   };
 
-  const handleMedicineChange = (medicineId: string) => {
-    const med = medicines.find((m) => m.id === medicineId);
-    if (med) {
-      setForm((prev) => ({
-        ...prev,
-        medicineId: med.id,
-        medicineName: med.name,
-        unit: med.unitShortName,
-      }));
+  const handleDeleteCrop = async () => {
+    if (!selectedCrop) return;
+    if (
+      !confirm(
+        `Delete "${selectedCrop}" and its master spray and fertilizer schedules? Farmer-specific schedules will not be changed.`
+      )
+    ) {
+      return;
     }
+
+    try {
+      const response = await fetch("/api/schedules/master", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_CROP",
+          cropName: selectedCrop,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to delete crop");
+        return;
+      }
+
+      const remainingSchedules = json.masterSchedules as Record<string, MasterCropSchedule>;
+      const remainingCrops = Object.keys(remainingSchedules);
+      setSchedules(remainingSchedules);
+      setSelectedCrop(remainingCrops[0] || "");
+      setEditingItemId(null);
+      showNotification("success", `Crop "${selectedCrop}" and its master schedules deleted.`);
+    } catch {
+      showNotification("error", "Network error while deleting crop");
+    }
+  };
+
+  const handleAddMedicineRow = () => {
+    const firstMedicine = medicines[0];
+    setForm((prev) => ({
+      ...prev,
+      medicines: [
+        ...prev.medicines,
+        {
+          medicineId: firstMedicine?.id || "",
+          medicineName: firstMedicine?.name || "",
+          quantity: "20",
+          unit: firstMedicine?.unitShortName || "ml",
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveMedicineRow = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      medicines: prev.medicines.filter((_, itemIndex) => itemIndex !== index),
+    }));
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCrop) return;
+    if (form.medicines.length === 0 || form.medicines.some((item) => !item.medicineName.trim())) {
+      showNotification("error", "Enter a medicine name for every row before saving.");
+      return;
+    }
 
     const action = editingItemId ? "UPDATE_ITEM" : "ADD_ITEM";
     const payload = {
@@ -143,16 +200,14 @@ export default function SprayMasterPage() {
       cropName: selectedCrop,
       scheduleType: "spray",
       item: {
+        ...form.medicines[0],
         id: editingItemId || undefined,
         day: Number(form.day),
         time: form.time,
-        medicineId: form.medicineId,
-        medicineName: form.medicineName,
-        quantity: form.quantity,
-        unit: form.unit,
         waterQuantity: form.waterQuantity,
         note: form.note,
       },
+      items: form.medicines,
     };
 
     try {
@@ -168,6 +223,10 @@ export default function SprayMasterPage() {
         setForm((prev) => ({
           ...prev,
           day: Number(prev.day) + 7,
+          medicines: prev.medicines.slice(0, 1).map((item) => ({
+            ...item,
+            quantity: "20",
+          })),
           note: "",
         }));
         showNotification(
@@ -187,10 +246,12 @@ export default function SprayMasterPage() {
     setForm({
       day: item.day,
       time: item.time,
-      medicineId: item.medicineId,
-      medicineName: item.medicineName,
-      quantity: item.quantity,
-      unit: item.unit,
+      medicines: [{
+        medicineId: item.medicineId,
+        medicineName: item.medicineName,
+        quantity: item.quantity,
+        unit: item.unit,
+      }],
       waterQuantity: item.waterQuantity,
       note: item.note,
     });
@@ -305,6 +366,16 @@ export default function SprayMasterPage() {
           >
             + Add Crop
           </button>
+          <button
+            type="button"
+            onClick={handleDeleteCrop}
+            disabled={!selectedCrop}
+            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            title={selectedCrop ? `Delete ${selectedCrop}` : "No crop selected"}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Crop
+          </button>
         </div>
       </div>
 
@@ -333,7 +404,7 @@ export default function SprayMasterPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Crop Day (e.g. 4, 10, 20) *
@@ -363,43 +434,131 @@ export default function SprayMasterPage() {
               <option value="Evening">Evening (संध्याकाळ)</option>
             </select>
           </div>
+        </div>
 
-          <div className="lg:col-span-2">
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Select Medicine (From Medicine Master) *
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-700">
+              Medicines for this day ({form.medicines.length})
             </label>
-            <select
-              value={form.medicineId}
-              onChange={(e) => handleMedicineChange(e.target.value)}
-              className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
+            {!editingItemId && (
+              <button
+                type="button"
+                onClick={handleAddMedicineRow}
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add another medicine
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">
+            Add each medicine for this day separately; you can add as many as needed.
+          </p>
+
+          {form.medicines.map((item, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,2fr)_minmax(120px,1fr)_auto] sm:items-end"
             >
-              {medicines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.companyName})
-                </option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Medicine {index + 1} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  list={`spray-master-medicines-${index}`}
+                  value={item.medicineName}
+                  onChange={(e) => {
+                    const medicineName = e.target.value;
+                    const medicine = medicines.find(
+                      (candidate) =>
+                        candidate.name.toLowerCase() === medicineName.trim().toLowerCase()
+                    );
+                    setForm((prev) => ({
+                      ...prev,
+                      medicines: prev.medicines.map((row, itemIndex) =>
+                        itemIndex === index
+                          ? {
+                              ...row,
+                              medicineName,
+                              medicineId: medicine?.id || "",
+                              unit: medicine?.unitShortName || row.unit,
+                            }
+                          : row
+                      ),
+                    }));
+                  }}
+                  placeholder="Type a medicine name or choose a suggestion"
+                  className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium"
+                />
+                <datalist id={`spray-master-medicines-${index}`}>
+                  {medicines.map((medicine) => (
+                    <option key={medicine.id} value={medicine.name}>
+                      {medicine.companyName}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Quantity & Unit *
-            </label>
-            <div className="flex space-x-1.5">
-              <input
-                type="text"
-                required
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                placeholder="20"
-              />
-              <span className="inline-flex items-center px-2.5 rounded-xl bg-slate-100 text-slate-700 font-mono text-xs font-bold border border-slate-200">
-                {form.unit}
-              </span>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Quantity *
+                </label>
+                <div className="flex space-x-1.5">
+                  <input
+                    type="text"
+                    required
+                    value={item.quantity}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        medicines: prev.medicines.map((medicine, itemIndex) =>
+                          itemIndex === index
+                            ? { ...medicine, quantity: e.target.value }
+                            : medicine
+                        ),
+                      }))
+                    }
+                    className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl"
+                    placeholder="20"
+                  />
+                  <input
+                    type="text"
+                    required
+                    aria-label={`Unit for medicine ${index + 1}`}
+                    value={item.unit}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        medicines: prev.medicines.map((medicine, itemIndex) =>
+                          itemIndex === index
+                            ? { ...medicine, unit: e.target.value }
+                            : medicine
+                        ),
+                      }))
+                    }
+                    className="w-20 rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-mono font-bold text-slate-700"
+                  />
+                </div>
+              </div>
+
+              {form.medicines.length > 1 && !editingItemId && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMedicineRow(index)}
+                  className="justify-self-end rounded-lg p-2 text-red-600 hover:bg-red-50 sm:mb-0.5"
+                  aria-label={`Remove medicine ${index + 1}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
-          </div>
+          ))}
+        </div>
 
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Water Quantity *
@@ -414,7 +573,7 @@ export default function SprayMasterPage() {
             />
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-5">
+          <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Important Notes / Spray Advice / Sticker
             </label>
@@ -423,10 +582,11 @@ export default function SprayMasterPage() {
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-              placeholder="e.g. Preventive spray against early blight. Spray during cool morning hours with sticker."
+              placeholder="e.g. Preventive spray against early blight."
             />
           </div>
-
+        </div>
+        <div className="flex justify-end">
           <div className="flex items-end">
             <button
               type="submit"
@@ -529,4 +689,3 @@ export default function SprayMasterPage() {
     </div>
   );
 }
-
