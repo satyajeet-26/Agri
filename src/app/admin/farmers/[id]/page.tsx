@@ -476,6 +476,40 @@ export default function FarmerDetailsPage() {
     }
   };
 
+  const handleDeletePlot = async () => {
+    if (!selectedPlot) return;
+    if (
+      !confirm(
+        `Delete ${selectedPlot.plotName} (${selectedPlot.cropName}) and its schedules? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to delete plot");
+      }
+
+      const updatedFarmer = json.farmer;
+      setFarmer(updatedFarmer);
+      setSelectedPlotId(updatedFarmer.plots[0]?.id || "");
+      setShowSprayForm(false);
+      setShowFertForm(false);
+      setEditingSprayId(null);
+      setEditingFertId(null);
+      showNotification("success", "Plot deleted successfully");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to delete plot";
+      showNotification("error", errorMessage);
+    }
+  };
+
   const totalFarmerGuntha = (farmer.plots || []).reduce((sum, p) => sum + (p.totalGuntha || 0), 0);
 
   return (
@@ -613,7 +647,7 @@ export default function FarmerDetailsPage() {
             Plots:
           </span>
           {farmer.plots.map((plot) => {
-            const active = plot.id === selectedPlot.id;
+            const active = plot.id === selectedPlot?.id;
             return (
               <button
                 key={plot.id}
@@ -689,11 +723,20 @@ export default function FarmerDetailsPage() {
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
               <span>Reset from Master Template</span>
             </button>
+            <button
+              onClick={handleDeletePlot}
+              className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-700 text-xs font-semibold shadow-xs"
+              title="Delete this plot and its schedules"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Plot</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* 4. Schedules View Switcher (Spray Schedule vs Fertilizer Schedule) */}
+      {selectedPlot ? (
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex gap-2">
@@ -993,9 +1036,17 @@ export default function FarmerDetailsPage() {
           </div>
         )}
       </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <p className="text-sm font-bold text-slate-700">No plots for this farmer yet.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Add a plot to create and manage its schedules.
+          </p>
+        </div>
+      )}
 
       {/* SPRAY EDIT / ADD MODAL */}
-      {showSprayForm && (
+      {showSprayForm && selectedPlot && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <form
             onSubmit={handleSaveSprayItem}
@@ -1179,7 +1230,7 @@ export default function FarmerDetailsPage() {
       )}
 
       {/* FERTILIZER EDIT / ADD MODAL */}
-      {showFertForm && (
+      {showFertForm && selectedPlot && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <form
             onSubmit={handleSaveFertItem}
