@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Sprout, User, Lock, ArrowRight, ShieldCheck, Phone, CheckCircle2 } from "lucide-react";
+import { Sprout, User, Lock, ArrowRight, ShieldCheck, Phone } from "lucide-react";
 import { ShopProfile } from "@/types";
 
 export default function LoginPage() {
@@ -188,28 +188,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials Box */}
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5 text-slate-700">
-            <p className="font-bold text-emerald-950 flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Instant Demo Credentials:</span>
-            </p>
-            {activeTab === "farmer" ? (
-              <p className="text-[11px] text-slate-600">
-                Farmer 1: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">ramesh</code>
-                <br />
-                Farmer 2: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">suresh</code>
-                <br />
-                Use the demo password provided by your administrator.
-              </p>
-            ) : (
-              <p className="text-[11px] text-slate-600">
-                Admin: <code className="font-bold bg-white px-1.5 py-0.5 rounded border">admin@krushi.com</code>
-                <br />
-                Use the admin password configured for this deployment.
-              </p>
-            )}
-          </div>
         </div>
 
         {/* Footer info */}
