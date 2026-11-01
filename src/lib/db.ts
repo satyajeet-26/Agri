@@ -695,11 +695,14 @@ async function supabaseRequest(
   const method = init?.method || "GET";
   const resource = `/rest/v1/${pathAndQuery.split("?")[0]}`;
   let response: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
     response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
     ...init,
     cache: "no-store",
+    signal: controller.signal,
     headers: {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
@@ -715,7 +718,12 @@ async function supabaseRequest(
       errorName: name,
       errorMessage: message,
     });
+    if (name === "AbortError") {
+      throw new Error("Supabase request timed out after 20 seconds.");
+    }
     throw new Error(`Supabase REST request failed before receiving a response (${name}).`);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {

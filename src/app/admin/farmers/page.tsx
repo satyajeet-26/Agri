@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import {
   Farmer,
   StateMaster,
@@ -40,6 +41,8 @@ export default function FarmerMasterPage() {
 
   const [loading, setLoading] = useState(true);
   const [savingFarmer, setSavingFarmer] = useState(false);
+  const [deletingFarmerId, setDeletingFarmerId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,47 +95,58 @@ export default function FarmerMasterPage() {
   const loadData = async () => {
     try {
       const [resFarmers, resGen, resSched] = await Promise.all([
-        fetch("/api/farmers"),
-        fetch("/api/masters/general"),
-        fetch("/api/schedules/master"),
+        fetchWithTimeout("/api/farmers"),
+        fetchWithTimeout("/api/masters/general"),
+        fetchWithTimeout("/api/schedules/master"),
       ]);
       const jsonFarmers = await resFarmers.json();
       const jsonGen = await resGen.json();
       const jsonSched = await resSched.json();
 
-      if (jsonFarmers.success) setFarmers(jsonFarmers.farmers || []);
-
-      if (jsonGen.success) {
-        const locationData = jsonGen.data;
-        setStates(locationData.states || []);
-        setDistricts(locationData.districts || []);
-        setTalukas(locationData.talukas || []);
-        setVillages(locationData.villages || []);
-
-        const initialState = locationData.states?.[0];
-        const initialDistrict = locationData.districts?.find(
-          (district: DistrictMaster) => district.stateId === initialState?.id
-        );
-        const initialTaluka = locationData.talukas?.find(
-          (taluka: TalukaMaster) => taluka.districtId === initialDistrict?.id
-        );
-        const initialVillage = locationData.villages?.find(
-          (village: VillageMaster) => village.talukaId === initialTaluka?.id
-        );
-        setForm((current) => ({
-          ...current,
-          state: initialState?.name || "",
-          district: initialDistrict?.name || "",
-          taluka: initialTaluka?.name || "",
-          village: initialVillage?.name || "",
-        }));
+      if (!resFarmers.ok || !jsonFarmers.success) {
+        throw new Error(jsonFarmers.message || jsonFarmers.error || "Unable to load farmers.");
+      }
+      if (!resGen.ok || !jsonGen.success) {
+        throw new Error(jsonGen.message || jsonGen.error || "Unable to load location details.");
+      }
+      if (!resSched.ok || !jsonSched.success) {
+        throw new Error(jsonSched.message || jsonSched.error || "Unable to load crop schedules.");
       }
 
-      if (jsonSched.success && jsonSched.masterSchedules) {
+      setFarmers(jsonFarmers.farmers || []);
+      const locationData = jsonGen.data;
+      setStates(locationData.states || []);
+      setDistricts(locationData.districts || []);
+      setTalukas(locationData.talukas || []);
+      setVillages(locationData.villages || []);
+
+      const initialState = locationData.states?.[0];
+      const initialDistrict = locationData.districts?.find(
+        (district: DistrictMaster) => district.stateId === initialState?.id
+      );
+      const initialTaluka = locationData.talukas?.find(
+        (taluka: TalukaMaster) => taluka.districtId === initialDistrict?.id
+      );
+      const initialVillage = locationData.villages?.find(
+        (village: VillageMaster) => village.talukaId === initialTaluka?.id
+      );
+      setForm((current) => ({
+        ...current,
+        state: initialState?.name || "",
+        district: initialDistrict?.name || "",
+        taluka: initialTaluka?.name || "",
+        village: initialVillage?.name || "",
+      }));
+
+      if (jsonSched.masterSchedules) {
         setCrops(Object.keys(jsonSched.masterSchedules));
       }
-    } catch (err) {
-      console.error(err);
+      setLoadError("");
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Unable to load farmer master.";
+      setLoadError(errorMessage);
+      console.error("Farmer master data load failed:", err);
     } finally {
       setLoading(false);
     }
@@ -199,7 +213,7 @@ export default function FarmerMasterPage() {
 
     setSavingFarmer(true);
     try {
-      const res = await fetch("/api/farmers", {
+      const res = await fetchWithTimeout("/api/farmers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -253,25 +267,38 @@ export default function FarmerMasterPage() {
           json.message || json.error || `Failed to add farmer (HTTP ${res.status})`
         );
       }
-    } catch {
-      showNotification("error", "Network error while saving farmer");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Network error while saving farmer."
+      );
     } finally {
       setSavingFarmer(false);
     }
   };
 
   const handleDeleteFarmer = async (farmerId: string) => {
+    if (deletingFarmerId) return;
     if (!confirm("Are you sure you want to delete this farmer and all their plot schedules?"))
       return;
+    setDeletingFarmerId(farmerId);
     try {
-      const res = await fetch(`/api/farmers/${farmerId}`, { method: "DELETE" });
+      const res = await fetchWithTimeout(`/api/farmers/${encodeURIComponent(farmerId)}`, {
+        method: "DELETE",
+      });
       const json = await res.json();
-      if (json.success) {
-        setFarmers(farmers.filter((f) => f.id !== farmerId));
-        showNotification("success", "Farmer removed successfully");
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || `Failed to delete farmer (HTTP ${res.status}).`);
       }
-    } catch (err) {
-      showNotification("error", "Failed to delete farmer");
+      setFarmers((current) => current.filter((farmer) => farmer.id !== farmerId));
+      showNotification("success", "Farmer removed successfully");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to delete farmer."
+      );
+    } finally {
+      setDeletingFarmerId(null);
     }
   };
 
@@ -300,6 +327,21 @@ export default function FarmerMasterPage() {
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadData();
+            }}
+            className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {message && (
         <div
           role={message.type === "success" ? "status" : "alert"}
@@ -330,7 +372,9 @@ export default function FarmerMasterPage() {
 
         <div className="flex items-center space-x-2">
           <button
+            type="button"
             onClick={() => setShowAddModal(true)}
+            disabled={savingFarmer || loading}
             className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all hover:scale-102"
           >
             <Plus className="w-4 h-4" />
@@ -432,9 +476,11 @@ export default function FarmerMasterPage() {
                       </Link>
 
                       <button
+                        type="button"
                         onClick={() => handleDeleteFarmer(f.id)}
+                        disabled={deletingFarmerId !== null}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete farmer"
+                        title={deletingFarmerId === f.id ? "Deleting farmer" : "Delete farmer"}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -458,7 +504,9 @@ export default function FarmerMasterPage() {
                 <h3 className="font-bold text-base">Add New Farmer & Assign Plots</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAddModal(false)}
+                disabled={savingFarmer}
                 className="text-emerald-200 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -804,6 +852,7 @@ export default function FarmerMasterPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
+                  disabled={savingFarmer}
                   className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
                   Cancel

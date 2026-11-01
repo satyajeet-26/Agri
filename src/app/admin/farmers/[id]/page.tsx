@@ -27,6 +27,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import {
   dateFromCropDay,
   formatScheduleDate,
@@ -68,6 +69,8 @@ export default function FarmerDetailsPage() {
   const [plotTimelineLoading, setPlotTimelineLoading] = useState(false);
   const [plotTimelineError, setPlotTimelineError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingAction, setSavingAction] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Selected plot for viewing & customization
@@ -152,11 +155,11 @@ export default function FarmerDetailsPage() {
   const loadData = async () => {
     try {
       const [resFarmer, resGen, resMed, resSched, resRelease] = await Promise.all([
-        fetch(`/api/farmers/${id}`),
-        fetch("/api/masters/general"),
-        fetch("/api/masters/medicines"),
-        fetch("/api/schedules/master"),
-        fetch("/api/schedules/release"),
+        fetchWithTimeout(`/api/farmers/${encodeURIComponent(id)}`),
+        fetchWithTimeout("/api/masters/general"),
+        fetchWithTimeout("/api/masters/medicines"),
+        fetchWithTimeout("/api/schedules/master"),
+        fetchWithTimeout("/api/schedules/release"),
       ]);
 
       const jsonFarmer = await resFarmer.json();
@@ -165,16 +168,17 @@ export default function FarmerDetailsPage() {
       const jsonSched = await resSched.json();
       const jsonRelease = await resRelease.json();
 
-      if (jsonFarmer.success && jsonFarmer.farmer) {
-        setFarmer(jsonFarmer.farmer);
-        setScheduleProgress(jsonFarmer.scheduleProgress || []);
-        if (jsonFarmer.farmer.plots.length > 0 && !selectedPlotId) {
-          const requestedPlotId = new URLSearchParams(window.location.search).get("plotId");
-          const requestedPlot = jsonFarmer.farmer.plots.find(
-            (plot: Plot) => plot.id === requestedPlotId
-          );
-          setSelectedPlotId(requestedPlot?.id || jsonFarmer.farmer.plots[0].id);
-        }
+      if (!resFarmer.ok || !jsonFarmer.success || !jsonFarmer.farmer) {
+        throw new Error(jsonFarmer.message || jsonFarmer.error || "Unable to load farmer details.");
+      }
+      setFarmer(jsonFarmer.farmer);
+      setScheduleProgress(jsonFarmer.scheduleProgress || []);
+      if (jsonFarmer.farmer.plots.length > 0 && !selectedPlotId) {
+        const requestedPlotId = new URLSearchParams(window.location.search).get("plotId");
+        const requestedPlot = jsonFarmer.farmer.plots.find(
+          (plot: Plot) => plot.id === requestedPlotId
+        );
+        setSelectedPlotId(requestedPlot?.id || jsonFarmer.farmer.plots[0].id);
       }
 
       if (jsonGen.success && jsonGen.data?.shop) {
@@ -209,8 +213,12 @@ export default function FarmerDetailsPage() {
       if (jsonRelease.success) {
         setScheduleHistory(jsonRelease.history || []);
       }
-    } catch (err) {
-      console.error(err);
+      setLoadError("");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unable to load farmer details.";
+      setLoadError(errorMessage);
+      console.error("Farmer details load failed:", error);
     } finally {
       setLoading(false);
     }
@@ -234,7 +242,7 @@ export default function FarmerDetailsPage() {
     setPlotTimeline(null);
     setPlotTimelineLoading(true);
     setPlotTimelineError("");
-    fetch(`/api/farmers/${encodeURIComponent(id)}/plots/${encodeURIComponent(selectedPlotId)}/schedule`)
+    fetchWithTimeout(`/api/farmers/${encodeURIComponent(id)}/plots/${encodeURIComponent(selectedPlotId)}/schedule`)
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok || !result.success || !result.timeline) {
@@ -262,7 +270,7 @@ export default function FarmerDetailsPage() {
     setTimeout(() => setMessage(null), 3500);
   };
 
-  if (loading || !farmer) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-100">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
@@ -270,6 +278,24 @@ export default function FarmerDetailsPage() {
     );
   }
 
+  if (!farmer) {
+    return (
+      <div role="alert" className="mx-auto mt-8 max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
+        <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-600" />
+        <p className="text-sm text-slate-800">{loadError || "Unable to load this farmer."}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            void loadData();
+          }}
+          className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
   const selectedScheduleProgress = scheduleProgress.find(
     (progress) =>
@@ -404,7 +430,8 @@ export default function FarmerDetailsPage() {
   };
 
   const handleEditTimelineSpray = (item: PersonalizedSprayItem) => {
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
+    setSavingAction("toggle");
     setEditingSprayId(item.id);
     setSprayForm({
       day: item.day,
@@ -450,7 +477,7 @@ export default function FarmerDetailsPage() {
   ) => {
     if (!selectedPlot) return;
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`,
         {
           method: "PUT",
@@ -473,13 +500,16 @@ export default function FarmerDetailsPage() {
         "error",
         error instanceof Error ? error.message : "Unable to update schedule completion."
       );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   // 3. Save / Update Personalized Spray Schedule item
   const handleSaveSprayItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
+    setSavingAction("spray");
 
     const action = editingSprayId ? "UPDATE_SPRAY" : "ADD_SPRAY";
     const payload = {
@@ -499,12 +529,15 @@ export default function FarmerDetailsPage() {
     };
 
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to save spray schedule.");
+      }
       if (json.success) {
         // Update local farmer state
         const updatedPlots = farmer.plots.map((p) =>
@@ -518,21 +551,31 @@ export default function FarmerDetailsPage() {
           `Spray customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`
         );
       }
-    } catch (err) {
-      showNotification("error", "Failed to update personalized spray schedule");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to update personalized spray schedule."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   const handleDeleteSprayItem = async (itemId: string) => {
+    if (savingAction) return;
     if (!confirm("Are you sure you want to remove this spray day from this farmer's plot?"))
       return;
+    setSavingAction("spray");
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "DELETE_SPRAY", itemId }),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to delete spray schedule item.");
+      }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
@@ -540,15 +583,21 @@ export default function FarmerDetailsPage() {
         setFarmer({ ...farmer, plots: updatedPlots });
         showNotification("success", "Spray day removed from this plot schedule");
       }
-    } catch (err) {
-      showNotification("error", "Failed to delete item");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to delete spray schedule item."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   // 4. Save / Update Personalized Fertilizer Schedule item
   const handleSaveFertItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
+    setSavingAction("fertilizer");
 
     const action = editingFertId ? "UPDATE_FERTILIZER" : "ADD_FERTILIZER";
     const payload = {
@@ -569,12 +618,15 @@ export default function FarmerDetailsPage() {
     };
 
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to save fertilizer schedule.");
+      }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
@@ -587,20 +639,30 @@ export default function FarmerDetailsPage() {
           `Fertilizer customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`
         );
       }
-    } catch (err) {
-      showNotification("error", "Failed to update fertilizer schedule");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to update fertilizer schedule."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   const handleDeleteFertItem = async (itemId: string) => {
+    if (savingAction) return;
     if (!confirm("Are you sure you want to remove this fertilizer stage from this plot?")) return;
+    setSavingAction("fertilizer");
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "DELETE_FERTILIZER", itemId }),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to delete fertilizer schedule item.");
+      }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
@@ -608,13 +670,19 @@ export default function FarmerDetailsPage() {
         setFarmer({ ...farmer, plots: updatedPlots });
         showNotification("success", "Fertilizer stage removed from this plot schedule");
       }
-    } catch (err) {
-      showNotification("error", "Failed to delete item");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to delete fertilizer schedule item."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   // 5. Reset plot schedule to master
   const handleResetToMaster = async () => {
+    if (!selectedPlot || savingAction) return;
     if (
       !confirm(
         `Are you sure you want to reset ${selectedPlot.plotName}'s schedule back to the standard ${selectedPlot.cropName} master template? Any custom modifications will be replaced.`
@@ -622,13 +690,17 @@ export default function FarmerDetailsPage() {
     )
       return;
 
+    setSavingAction("reset");
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "RESET_TO_MASTER" }),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to reset schedule.");
+      }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
@@ -636,14 +708,21 @@ export default function FarmerDetailsPage() {
         setFarmer({ ...farmer, plots: updatedPlots });
         showNotification("success", "Schedule reset to Master template!");
       }
-    } catch (err) {
-      showNotification("error", "Failed to reset schedule");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to reset schedule."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   // 6. Add New Plot to this farmer
   const handleAddPlot = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingAction) return;
+    setSavingAction("add-plot");
     try {
       const updatedPlots = [
         ...farmer.plots,
@@ -657,12 +736,15 @@ export default function FarmerDetailsPage() {
         },
       ];
 
-      const res = await fetch(`/api/farmers/${farmer.id}`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plots: updatedPlots }),
       });
       const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || json.error || "Failed to add plot.");
+      }
       if (json.success) {
         setFarmer(json.farmer);
         setShowAddPlotModal(false);
@@ -671,13 +753,18 @@ export default function FarmerDetailsPage() {
         }
         showNotification("success", "New plot added and master schedule cloned!");
       }
-    } catch (err) {
-      showNotification("error", "Failed to add plot");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Failed to add plot."
+      );
+    } finally {
+      setSavingAction(null);
     }
   };
 
   const handleDeletePlot = async () => {
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
     if (
       !confirm(
         `Delete ${selectedPlot.plotName} (${selectedPlot.cropName}) and its schedules? This cannot be undone.`
@@ -686,8 +773,9 @@ export default function FarmerDetailsPage() {
       return;
     }
 
+    setSavingAction("delete-plot");
     try {
-      const res = await fetch(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}`, {
+      const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}`, {
         method: "DELETE",
       });
       const json = await res.json();
@@ -707,6 +795,8 @@ export default function FarmerDetailsPage() {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to delete plot";
       showNotification("error", errorMessage);
+    } finally {
+      setSavingAction(null);
     }
   };
 
@@ -738,6 +828,21 @@ export default function FarmerDetailsPage() {
               <AlertCircle className="w-4 h-4" />
             )}
             <span>{message.text}</span>
+          </div>
+        )}
+        {loadError && (
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+            <span>Could not load all farmer details: {loadError}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                void loadData();
+              }}
+              className="rounded-lg bg-amber-200 px-3 py-1.5 font-bold"
+            >
+              Retry
+            </button>
           </div>
         )}
       </div>
@@ -876,7 +981,9 @@ export default function FarmerDetailsPage() {
         </div>
 
         <button
+          type="button"
           onClick={() => setShowAddPlotModal(true)}
+          disabled={savingAction !== null}
           className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-sm shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -938,19 +1045,21 @@ export default function FarmerDetailsPage() {
           <div className="flex items-center space-x-2">
             <button
               onClick={handleResetToMaster}
+              disabled={savingAction !== null}
               className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
               title="Re-copy from Master Template"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Reset from Master Template</span>
+              <span>{savingAction === "reset" ? "Resetting..." : "Reset from Master Template"}</span>
             </button>
             <button
               onClick={handleDeletePlot}
+              disabled={savingAction !== null}
               className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-700 text-xs font-semibold shadow-xs"
               title="Delete this plot and its schedules"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Plot</span>
+              <span>{savingAction === "delete-plot" ? "Deleting..." : "Delete Plot"}</span>
             </button>
           </div>
         </div>
@@ -1538,9 +1647,10 @@ export default function FarmerDetailsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
+                  disabled={savingAction !== null}
+                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  Save Plot Customization
+                  {savingAction === "spray" ? "Saving..." : "Save Plot Customization"}
                 </button>
               </div>
             </div>
@@ -1723,9 +1833,10 @@ export default function FarmerDetailsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
+                  disabled={savingAction !== null}
+                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  Save Fertilizer Customization
+                  {savingAction === "fertilizer" ? "Saving..." : "Save Fertilizer Customization"}
                 </button>
               </div>
             </div>
@@ -1745,6 +1856,7 @@ export default function FarmerDetailsPage() {
               <button
                 type="button"
                 onClick={() => setShowAddPlotModal(false)}
+                disabled={savingAction !== null}
                 className="text-emerald-200 hover:text-white"
               >
                 ✕
@@ -1849,9 +1961,10 @@ export default function FarmerDetailsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
+                  disabled={savingAction !== null}
+                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  Create Plot & Clone Schedule
+                  {savingAction === "add-plot" ? "Creating..." : "Create Plot & Clone Schedule"}
                 </button>
               </div>
             </div>

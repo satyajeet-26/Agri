@@ -117,7 +117,21 @@ export async function PUT(
     const { id, plotId } = await params;
     const db = await getDb();
     if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, message: "A valid JSON request body is required." },
+        { status: 400 }
+      );
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json(
+        { success: false, message: "A valid schedule operation is required." },
+        { status: 400 }
+      );
+    }
 
     const farmer = db.farmers.find((f) => f.id === id);
     if (!farmer) {
@@ -139,14 +153,33 @@ export async function PUT(
     // 7. "RESET_TO_MASTER": re-clone standard template for this plot
 
     const { action, item, itemId, type } = body;
+    const supportedActions = [
+      "UPDATE_SPRAY",
+      "ADD_SPRAY",
+      "DELETE_SPRAY",
+      "UPDATE_FERTILIZER",
+      "ADD_FERTILIZER",
+      "DELETE_FERTILIZER",
+      "RESET_TO_MASTER",
+      "TOGGLE_COMPLETED",
+    ];
+    if (!supportedActions.includes(action)) {
+      return NextResponse.json(
+        { success: false, message: "Unsupported plot schedule action." },
+        { status: 400 }
+      );
+    }
 
     if (
       ["ADD_SPRAY", "UPDATE_SPRAY", "ADD_FERTILIZER", "UPDATE_FERTILIZER"].includes(action) &&
-      item?.scheduledDate !== undefined &&
-      !isValidScheduleDate(item.scheduledDate)
+      (!item ||
+        typeof item !== "object" ||
+        !Number.isInteger(Number(item.day)) ||
+        Number(item.day) < 1 ||
+        (item.scheduledDate !== undefined && !isValidScheduleDate(item.scheduledDate)))
     ) {
       return NextResponse.json(
-        { success: false, message: "Scheduled date must be a valid calendar date (YYYY-MM-DD)." },
+        { success: false, message: "A positive whole-number day and valid scheduled date are required." },
         { status: 400 }
       );
     }
@@ -190,21 +223,32 @@ export async function PUT(
       );
     } else if (action === "UPDATE_SPRAY") {
       const index = plot.spraySchedule.findIndex((s) => s.id === item.id);
-      if (index !== -1) {
-        plot.spraySchedule[index] = {
-          ...plot.spraySchedule[index],
-          ...item,
-          day: Number(item.day),
-          scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
-        };
-        plot.spraySchedule.sort((a, b) =>
-          (getSprayScheduledDate(plot, a) || "").localeCompare(
-            getSprayScheduledDate(plot, b) || ""
-          )
+      if (index === -1) {
+        return NextResponse.json(
+          { success: false, message: "Spray schedule item was not found." },
+          { status: 404 }
         );
       }
+      plot.spraySchedule[index] = {
+        ...plot.spraySchedule[index],
+        ...item,
+        day: Number(item.day),
+        scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
+      };
+      plot.spraySchedule.sort((a, b) =>
+        (getSprayScheduledDate(plot, a) || "").localeCompare(
+          getSprayScheduledDate(plot, b) || ""
+        )
+      );
     } else if (action === "DELETE_SPRAY") {
+      const originalLength = plot.spraySchedule.length;
       plot.spraySchedule = plot.spraySchedule.filter((s) => s.id !== itemId);
+      if (plot.spraySchedule.length === originalLength) {
+        return NextResponse.json(
+          { success: false, message: "Spray schedule item was not found." },
+          { status: 404 }
+        );
+      }
     } else if (action === "ADD_FERTILIZER") {
       const newItem: PersonalizedFertilizerItem = {
         id: `pfr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -228,28 +272,57 @@ export async function PUT(
       );
     } else if (action === "UPDATE_FERTILIZER") {
       const index = plot.fertilizerSchedule.findIndex((f) => f.id === item.id);
-      if (index !== -1) {
-        plot.fertilizerSchedule[index] = {
-          ...plot.fertilizerSchedule[index],
-          ...item,
-          day: Number(item.day),
-          scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
-        };
-        plot.fertilizerSchedule.sort((a, b) =>
-          (getFertilizerScheduledDate(plot, a) || "").localeCompare(
-            getFertilizerScheduledDate(plot, b) || ""
-          )
+      if (index === -1) {
+        return NextResponse.json(
+          { success: false, message: "Fertilizer schedule item was not found." },
+          { status: 404 }
         );
       }
+      plot.fertilizerSchedule[index] = {
+        ...plot.fertilizerSchedule[index],
+        ...item,
+        day: Number(item.day),
+        scheduledDate: isValidScheduleDate(item.scheduledDate) ? item.scheduledDate : undefined,
+      };
+      plot.fertilizerSchedule.sort((a, b) =>
+        (getFertilizerScheduledDate(plot, a) || "").localeCompare(
+          getFertilizerScheduledDate(plot, b) || ""
+        )
+      );
     } else if (action === "DELETE_FERTILIZER") {
+      const originalLength = plot.fertilizerSchedule.length;
       plot.fertilizerSchedule = plot.fertilizerSchedule.filter((f) => f.id !== itemId);
+      if (plot.fertilizerSchedule.length === originalLength) {
+        return NextResponse.json(
+          { success: false, message: "Fertilizer schedule item was not found." },
+          { status: 404 }
+        );
+      }
     } else if (action === "TOGGLE_COMPLETED") {
+      if (type !== "spray" && type !== "fertilizer") {
+        return NextResponse.json(
+          { success: false, message: "Schedule type must be spray or fertilizer." },
+          { status: 400 }
+        );
+      }
       if (type === "spray") {
         const target = plot.spraySchedule.find((s) => s.id === itemId);
-        if (target) target.isCompleted = !target.isCompleted;
+        if (!target) {
+          return NextResponse.json(
+            { success: false, message: "Spray schedule item was not found." },
+            { status: 404 }
+          );
+        }
+        target.isCompleted = !target.isCompleted;
       } else {
         const target = plot.fertilizerSchedule.find((f) => f.id === itemId);
-        if (target) target.isCompleted = !target.isCompleted;
+        if (!target) {
+          return NextResponse.json(
+            { success: false, message: "Fertilizer schedule item was not found." },
+            { status: 404 }
+          );
+        }
+        target.isCompleted = !target.isCompleted;
       }
     }
 
