@@ -38,6 +38,11 @@ export default function SprayMasterPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const showNotification = (type: "success" | "error", text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   // New crop input
   const [newCropName, setNewCropName] = useState("");
 
@@ -75,12 +80,17 @@ export default function SprayMasterPage() {
       const jsonFarmers = await resFarmers.json();
       const jsonRelease = await resRelease.json();
 
-      if (jsonSched.success) {
-        setSchedules(jsonSched.masterSchedules || {});
-        const crops = Object.keys(jsonSched.masterSchedules || {});
-        if (crops.length > 0 && !crops.includes(selectedCrop)) {
-          setSelectedCrop(crops[0]);
-        }
+      if (!resSched.ok || !jsonSched.success) {
+        throw new Error(jsonSched.message || jsonSched.error || "Unable to load master schedules.");
+      }
+      if (!resMed.ok || !jsonMed.success) {
+        throw new Error(jsonMed.message || jsonMed.error || "Unable to load medicine master data.");
+      }
+
+      setSchedules(jsonSched.masterSchedules || {});
+      const crops = Object.keys(jsonSched.masterSchedules || {});
+      if (crops.length > 0 && !crops.includes(selectedCrop)) {
+        setSelectedCrop(crops[0]);
       }
 
       if (jsonMed.success && jsonMed.data?.medicines) {
@@ -117,6 +127,10 @@ export default function SprayMasterPage() {
       }
     } catch (err) {
       console.error(err);
+      showNotification(
+        "error",
+        err instanceof Error ? err.message : "Unable to load spray schedules."
+      );
     } finally {
       setLoading(false);
     }
@@ -225,11 +239,6 @@ export default function SprayMasterPage() {
     }
   };
 
-  const showNotification = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  };
-
   const handleAddCrop = async () => {
     if (!newCropName.trim()) return;
     const name = newCropName.trim();
@@ -240,15 +249,14 @@ export default function SprayMasterPage() {
         body: JSON.stringify({ action: "ADD_CROP", newCropName: name }),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules((prev) => ({
-          ...prev,
-          [name]: { cropName: name, spraySchedules: [], fertilizerSchedules: [] },
-        }));
-        setSelectedCrop(name);
-        setNewCropName("");
-        showNotification("success", `Crop "${name}" master schedule created!`);
+      if (!res.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to add crop");
+        return;
       }
+      setSchedules(json.masterSchedules);
+      setSelectedCrop(name);
+      setNewCropName("");
+      showNotification("success", `Crop "${name}" master schedule created!`);
     } catch (err) {
       showNotification("error", "Failed to add crop");
     }
@@ -344,25 +352,27 @@ export default function SprayMasterPage() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules(json.masterSchedules);
-        setEditingItemId(null);
-        setForm((prev) => ({
-          ...prev,
-          day: Number(prev.day) + 7,
-          medicines: prev.medicines.slice(0, 1).map((item) => ({
-            ...item,
-            quantity: "20",
-          })),
-          note: "",
-        }));
-        showNotification(
-          "success",
-          editingItemId
-            ? "Spray day updated in Master Schedule!"
-            : "Spray day added to Master Schedule!"
-        );
+      if (!res.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to save spray schedule item");
+        return;
       }
+      setSchedules(json.masterSchedules);
+      setEditingItemId(null);
+      setForm((prev) => ({
+        ...prev,
+        day: Number(prev.day) + 7,
+        medicines: prev.medicines.slice(0, 1).map((item) => ({
+          ...item,
+          quantity: "20",
+        })),
+        note: "",
+      }));
+      showNotification(
+        "success",
+        editingItemId
+          ? "Spray day updated in Master Schedule!"
+          : "Spray day added to Master Schedule!"
+      );
     } catch (err) {
       showNotification("error", "Failed to save spray schedule item");
     }
@@ -399,10 +409,12 @@ export default function SprayMasterPage() {
         }),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules(json.masterSchedules);
-        showNotification("success", "Item deleted from Master Schedule");
+      if (!res.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to delete item");
+        return;
       }
+      setSchedules(json.masterSchedules);
+      showNotification("success", "Item deleted from Master Schedule");
     } catch (err) {
       showNotification("error", "Failed to delete item");
     }

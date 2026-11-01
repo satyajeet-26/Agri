@@ -25,6 +25,11 @@ export default function FertilizerMasterPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const showNotification = (type: "success" | "error", text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   // New crop input
   const [newCropName, setNewCropName] = useState("");
 
@@ -61,15 +66,20 @@ export default function FertilizerMasterPage() {
       const jsonSched = await resSched.json();
       const jsonFert = await resFert.json();
 
-      if (jsonSched.success) {
-        setSchedules(jsonSched.masterSchedules || {});
-        const crops = Object.keys(jsonSched.masterSchedules || {});
-        if (crops.length > 0 && !crops.includes(selectedCrop)) {
-          setSelectedCrop(crops[0]);
-        }
+      if (!resSched.ok || !jsonSched.success) {
+        throw new Error(jsonSched.message || jsonSched.error || "Unable to load master schedules.");
+      }
+      if (!resFert.ok || !jsonFert.success) {
+        throw new Error(jsonFert.message || jsonFert.error || "Unable to load fertilizer master data.");
       }
 
-      if (jsonFert.success && jsonFert.data?.fertilizers) {
+      setSchedules(jsonSched.masterSchedules || {});
+      const crops = Object.keys(jsonSched.masterSchedules || {});
+      if (crops.length > 0 && !crops.includes(selectedCrop)) {
+        setSelectedCrop(crops[0]);
+      }
+
+      if (jsonFert.data?.fertilizers) {
         setFertilizers(jsonFert.data.fertilizers);
         if (jsonFert.data.fertilizers[0]) {
           setForm((prev) => ({
@@ -82,6 +92,10 @@ export default function FertilizerMasterPage() {
       }
     } catch (err) {
       console.error(err);
+      showNotification(
+        "error",
+        err instanceof Error ? err.message : "Unable to load fertilizer schedules."
+      );
     } finally {
       setLoading(false);
     }
@@ -90,11 +104,6 @@ export default function FertilizerMasterPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const showNotification = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  };
 
   const handleAddCrop = async () => {
     if (!newCropName.trim()) return;
@@ -106,15 +115,14 @@ export default function FertilizerMasterPage() {
         body: JSON.stringify({ action: "ADD_CROP", newCropName: name }),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules((prev) => ({
-          ...prev,
-          [name]: { cropName: name, spraySchedules: [], fertilizerSchedules: [] },
-        }));
-        setSelectedCrop(name);
-        setNewCropName("");
-        showNotification("success", `Crop "${name}" created!`);
+      if (!res.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to add crop");
+        return;
       }
+      setSchedules(json.masterSchedules);
+      setSelectedCrop(name);
+      setNewCropName("");
+      showNotification("success", `Crop "${name}" created!`);
     } catch (err) {
       showNotification("error", "Failed to add crop");
     }
@@ -150,22 +158,27 @@ export default function FertilizerMasterPage() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules(json.masterSchedules);
-        setEditingItemId(null);
-        setForm((prev) => ({
-          ...prev,
-          day: Number(prev.day) + 15,
-          stage: "Growth Stage",
-          note: "",
-        }));
+      if (!res.ok || !json.success) {
         showNotification(
-          "success",
-          editingItemId
-            ? "Fertilizer stage updated in Master Schedule!"
-            : "Fertilizer stage added to Master Schedule!"
+          "error",
+          json.message || json.error || "Failed to save fertilizer schedule item"
         );
+        return;
       }
+      setSchedules(json.masterSchedules);
+      setEditingItemId(null);
+      setForm((prev) => ({
+        ...prev,
+        day: Number(prev.day) + 15,
+        stage: "Growth Stage",
+        note: "",
+      }));
+      showNotification(
+        "success",
+        editingItemId
+          ? "Fertilizer stage updated in Master Schedule!"
+          : "Fertilizer stage added to Master Schedule!"
+      );
     } catch (err) {
       showNotification("error", "Failed to save fertilizer schedule item");
     }
@@ -201,10 +214,12 @@ export default function FertilizerMasterPage() {
         }),
       });
       const json = await res.json();
-      if (json.success) {
-        setSchedules(json.masterSchedules);
-        showNotification("success", "Item deleted from Master Schedule");
+      if (!res.ok || !json.success) {
+        showNotification("error", json.message || json.error || "Failed to delete item");
+        return;
       }
+      setSchedules(json.masterSchedules);
+      showNotification("success", "Item deleted from Master Schedule");
     } catch (err) {
       showNotification("error", "Failed to delete item");
     }
