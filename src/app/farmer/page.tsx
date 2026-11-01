@@ -48,51 +48,111 @@ export default function FarmerPanelPage() {
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<"today" | "all" | "spray" | "fertilizer">("today");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Check if farmer session exists in localStorage
     const stored = localStorage.getItem("agri_user");
     if (!stored) {
-      window.location.href = "/login";
+      router.replace("/login");
       return;
     }
 
+    let user: { id?: string; role?: string };
     try {
-      const user = JSON.parse(stored);
+      user = JSON.parse(stored) as { id?: string; role?: string };
       if (user.role !== "FARMER" || !user.id) {
-        window.location.href = "/login";
+        router.replace("/login");
         return;
       }
-
-      // Fetch latest farmer record & shop info
-      Promise.all([
-        fetch(`/api/farmers/${user.id}`),
-        fetch("/api/masters/general"),
-      ])
-        .then(async ([resF, resG]) => {
-          const jsonF = await resF.json();
-          const jsonG = await resG.json();
-
-          if (jsonF.success && jsonF.farmer) {
-            setFarmer(jsonF.farmer);
-            setScheduleProgress(jsonF.scheduleProgress || []);
-            setPlotCurrentDays(jsonF.plotCurrentDays || {});
-            if (jsonF.farmer.plots?.length > 0) {
-              setSelectedPlotId(jsonF.farmer.plots[0].id);
-            }
-          } else {
-            router.push("/login");
-          }
-
-          if (jsonG.success && jsonG.data?.shop) {
-            setShop(jsonG.data.shop);
-          }
-        })
-        .finally(() => setLoading(false));
     } catch {
-      router.push("/login");
+      localStorage.removeItem("agri_user");
+      router.replace("/login");
+      return;
     }
-  }, [router]);
+
+    const farmerId = user.id;
+    let cancelled = false;
+    let requestPending = false;
+    let timeoutId: number | undefined;
+
+    const refreshFarmerData = async () => {
+      if (requestPending || cancelled) return;
+      requestPending = true;
+      const controller = new AbortController();
+      timeoutId = window.setTimeout(() => controller.abort(), 15000);
+
+      try {
+        const [farmerResponse, generalResponse] = await Promise.all([
+          fetch(`/api/farmers/${encodeURIComponent(farmerId)}`, {
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+          fetch("/api/masters/general", {
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+        ]);
+        const [farmerResult, generalResult] = await Promise.all([
+          farmerResponse.json(),
+          generalResponse.json(),
+        ]);
+
+        if (farmerResponse.status === 401) {
+          localStorage.removeItem("agri_user");
+          router.replace("/login");
+          return;
+        }
+        if (!farmerResponse.ok || !farmerResult.success || !farmerResult.farmer) {
+          throw new Error(
+            farmerResult.message || farmerResult.error || "Unable to load farmer details."
+          );
+        }
+        if (cancelled) return;
+
+        setFarmer(farmerResult.farmer);
+        setScheduleProgress(farmerResult.scheduleProgress || []);
+        setPlotCurrentDays(farmerResult.plotCurrentDays || {});
+        setSelectedPlotId((current) =>
+          farmerResult.farmer.plots.some((plot: Plot) => plot.id === current)
+            ? current
+            : farmerResult.farmer.plots[0]?.id || ""
+        );
+        setLoadError("");
+
+        if (generalResponse.ok && generalResult.success && generalResult.data?.shop) {
+          setShop(generalResult.data.shop);
+        }
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const message =
+          error instanceof Error ? error.message : "Unable to load the latest farmer information.";
+        setLoadError(message);
+        console.error("Farmer panel refresh failed:", error);
+      } finally {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+        requestPending = false;
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshFarmerData();
+    };
+
+    void refreshFarmerData();
+    const intervalId = window.setInterval(refreshWhenVisible, 30000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshKey, router]);
 
   const handleLogout = async () => {
     try {
@@ -105,7 +165,7 @@ export default function FarmerPanelPage() {
     }
   };
 
-  if (loading || !farmer) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="flex flex-col items-center space-y-2">
@@ -116,6 +176,26 @@ export default function FarmerPanelPage() {
     );
   }
 
+  if (!farmer) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+        <div role="alert" className="max-w-md rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
+          <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-600" />
+          <p className="text-sm text-slate-800">{loadError || "Unable to load your farmer account."}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              setRefreshKey((current) => current + 1);
+            }}
+            className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
   const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
   const selectedProgress = scheduleProgress.find(
     (progress) =>
@@ -200,6 +280,24 @@ export default function FarmerPanelPage() {
 
       {/* Main Content Area */}
       <main className="max-w-4xl mx-auto w-full px-4 pt-4 space-y-4">
+        {loadError && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950"
+          >
+            <span>Could not refresh the latest farmer information: {loadError}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setRefreshKey((current) => current + 1);
+              }}
+              className="shrink-0 rounded-lg bg-amber-200 px-3 py-1.5 font-bold"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {/* Welcome Card & Farmer Info */}
         <div className="bg-linear-to-r from-emerald-800 to-green-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

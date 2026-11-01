@@ -18,20 +18,25 @@ export default function FarmerPlotSchedulePage() {
   const [timeline, setTimeline] = useState<PlotScheduleTimelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    let requestPending = false;
+    let timeoutId: number | undefined;
 
     const loadTimeline = async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-
       const stored = localStorage.getItem("agri_user");
       if (!stored) {
         router.replace("/login");
         setLoading(false);
         return;
       }
+
+      if (requestPending || cancelled) return;
+      requestPending = true;
+      const controller = new AbortController();
+      timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
       try {
         const user = JSON.parse(stored) as { id?: string; role?: string };
@@ -42,7 +47,8 @@ export default function FarmerPlotSchedulePage() {
         }
 
         const response = await fetch(
-          `/api/farmers/${encodeURIComponent(user.id)}/plots/${encodeURIComponent(plotId)}/schedule`
+          `/api/farmers/${encodeURIComponent(user.id)}/plots/${encodeURIComponent(plotId)}/schedule`,
+          { cache: "no-store", signal: controller.signal }
         );
         const result = await response.json();
         if (response.status === 401) {
@@ -56,6 +62,7 @@ export default function FarmerPlotSchedulePage() {
         if (!cancelled) {
           setTimeline(result.timeline);
           setFarmerName(result.farmerName || "");
+          setError("");
         }
       } catch (loadError: unknown) {
         if (cancelled) return;
@@ -65,16 +72,28 @@ export default function FarmerPlotSchedulePage() {
           setError("Unable to load this plot schedule.");
         }
       } finally {
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+        requestPending = false;
         if (!cancelled) setLoading(false);
       }
     };
 
     void loadTimeline();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadTimeline();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 30000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       cancelled = true;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [plotId, router]);
+  }, [plotId, refreshKey, router]);
 
   const handleLogout = async () => {
     try {
@@ -118,8 +137,18 @@ export default function FarmerPlotSchedulePage() {
         )}
 
         {!loading && error && (
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setRefreshKey((current) => current + 1);
+              }}
+              className="shrink-0 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
+            >
+              Retry
+            </button>
           </div>
         )}
 
