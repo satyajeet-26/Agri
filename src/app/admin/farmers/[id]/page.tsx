@@ -33,6 +33,7 @@ import {
   getDateInIndia,
 } from "@/lib/schedule-date";
 import { WhatsAppModal } from "@/components/WhatsAppModal";
+import { PlotScheduleTimeline } from "@/components/PlotScheduleTimeline";
 import {
   generateSprayWhatsAppMessage,
   generateFertilizerWhatsAppMessage,
@@ -45,6 +46,9 @@ import {
   Medicine,
   Fertilizer,
   ScheduleTime,
+  ScheduleProgress,
+  ScheduleExtensionHistory,
+  PlotScheduleTimeline as PlotScheduleTimelineData,
   ShopProfile,
 } from "@/types";
 
@@ -58,6 +62,11 @@ export default function FarmerDetailsPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [fertilizers, setFertilizers] = useState<Fertilizer[]>([]);
   const [crops, setCrops] = useState<string[]>([]);
+  const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
+  const [scheduleHistory, setScheduleHistory] = useState<ScheduleExtensionHistory[]>([]);
+  const [plotTimeline, setPlotTimeline] = useState<PlotScheduleTimelineData | null>(null);
+  const [plotTimelineLoading, setPlotTimelineLoading] = useState(false);
+  const [plotTimelineError, setPlotTimelineError] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -142,22 +151,29 @@ export default function FarmerDetailsPage() {
 
   const loadData = async () => {
     try {
-      const [resFarmer, resGen, resMed, resSched] = await Promise.all([
+      const [resFarmer, resGen, resMed, resSched, resRelease] = await Promise.all([
         fetch(`/api/farmers/${id}`),
         fetch("/api/masters/general"),
         fetch("/api/masters/medicines"),
         fetch("/api/schedules/master"),
+        fetch("/api/schedules/release"),
       ]);
 
       const jsonFarmer = await resFarmer.json();
       const jsonGen = await resGen.json();
       const jsonMed = await resMed.json();
       const jsonSched = await resSched.json();
+      const jsonRelease = await resRelease.json();
 
       if (jsonFarmer.success && jsonFarmer.farmer) {
         setFarmer(jsonFarmer.farmer);
+        setScheduleProgress(jsonFarmer.scheduleProgress || []);
         if (jsonFarmer.farmer.plots.length > 0 && !selectedPlotId) {
-          setSelectedPlotId(jsonFarmer.farmer.plots[0].id);
+          const requestedPlotId = new URLSearchParams(window.location.search).get("plotId");
+          const requestedPlot = jsonFarmer.farmer.plots.find(
+            (plot: Plot) => plot.id === requestedPlotId
+          );
+          setSelectedPlotId(requestedPlot?.id || jsonFarmer.farmer.plots[0].id);
         }
       }
 
@@ -189,6 +205,10 @@ export default function FarmerDetailsPage() {
       if (jsonSched.success && jsonSched.masterSchedules) {
         setCrops(Object.keys(jsonSched.masterSchedules));
       }
+
+      if (jsonRelease.success) {
+        setScheduleHistory(jsonRelease.history || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -204,6 +224,39 @@ export default function FarmerDetailsPage() {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    if (!selectedPlotId || !farmer) {
+      setPlotTimeline(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPlotTimeline(null);
+    setPlotTimelineLoading(true);
+    setPlotTimelineError("");
+    fetch(`/api/farmers/${encodeURIComponent(id)}/plots/${encodeURIComponent(selectedPlotId)}/schedule`)
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.timeline) {
+          throw new Error(result.message || "Unable to load plot schedule timeline.");
+        }
+        if (!cancelled) setPlotTimeline(result.timeline);
+      })
+      .catch((loadError: unknown) => {
+        if (cancelled) return;
+        const errorText =
+          loadError instanceof Error ? loadError.message : "Unable to load plot schedule timeline.";
+        setPlotTimelineError(errorText);
+      })
+      .finally(() => {
+        if (!cancelled) setPlotTimelineLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [farmer, id, selectedPlotId]);
+
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
@@ -211,16 +264,43 @@ export default function FarmerDetailsPage() {
 
   if (loading || !farmer) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
       </div>
     );
   }
 
   const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
+  const selectedScheduleProgress = scheduleProgress.find(
+    (progress) =>
+      progress.farmerId === farmer.id &&
+      progress.plotId === selectedPlot?.id &&
+      progress.cropId === selectedPlot?.cropName
+  );
+  const latestScheduleRelease = scheduleHistory
+    .filter(
+      (entry) =>
+        entry.farmerId === farmer.id &&
+        entry.plotId === selectedPlot?.id &&
+        entry.cropId === selectedPlot?.cropName
+    )
+    .slice()
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+  const canSendWhatsAppForDay = (day: number) =>
+    Boolean(
+      selectedScheduleProgress &&
+        latestScheduleRelease &&
+        day <= selectedScheduleProgress.totalDaysReleased &&
+        day >= latestScheduleRelease.releasedStartDay &&
+        day <= latestScheduleRelease.releasedEndDay
+    );
 
   // 1. WhatsApp Spray trigger
   const handleOpenSprayWhatsApp = (item: PersonalizedSprayItem) => {
+    if (!canSendWhatsAppForDay(item.day)) {
+      showNotification("error", "WhatsApp is available only for days in the latest released extension.");
+      return;
+    }
     if (!shop || !selectedPlot) return;
     const msg = generateSprayWhatsAppMessage({
       shopName: shop.name,
@@ -249,6 +329,10 @@ export default function FarmerDetailsPage() {
 
   // 2. WhatsApp Fertilizer trigger
   const handleOpenFertilizerWhatsApp = (item: PersonalizedFertilizerItem) => {
+    if (!canSendWhatsAppForDay(item.day)) {
+      showNotification("error", "WhatsApp is available only for days in the latest released extension.");
+      return;
+    }
     if (!shop || !selectedPlot) return;
     const msg = generateFertilizerWhatsAppMessage({
       shopName: shop.name,
@@ -274,6 +358,122 @@ export default function FarmerDetailsPage() {
       whatsappNumber: farmer.whatsapp || farmer.mobile,
       message: msg,
     });
+  };
+
+  const handleOpenTimelineWhatsApp = (dayNumber: number) => {
+    const day = plotTimeline?.days.find((entry) => entry.day === dayNumber);
+    if (
+      !day ||
+      day.status !== "TODAY" ||
+      !selectedScheduleProgress ||
+      day.day > selectedScheduleProgress.totalDaysReleased
+    ) {
+      showNotification("error", "Only today's released schedule can be sent.");
+      return;
+    }
+    if (!shop || !selectedPlot) return;
+
+    const entries = [
+      ...day.sprays.map(
+        (item) =>
+          `Time: ${item.time}\nMedicine: ${item.medicineName}\nQuantity: ${item.quantity} ${item.unit}\nWater: ${item.waterQuantity}${item.note ? `\nNote: ${item.note}` : ""}`
+      ),
+      ...day.fertilizers.map(
+        (item) =>
+          `Fertilizer: ${item.fertilizerName}\nQuantity: ${item.quantity} ${item.unit}\nMethod: ${item.applicationMethod}${item.waterQuantity ? `\nWater: ${item.waterQuantity}` : ""}${item.note ? `\nNote: ${item.note}` : ""}`
+      ),
+    ];
+    const message = [
+      `🌾 ${shop.name}`,
+      "Today's Crop Schedule",
+      `Farmer: ${farmer.name}`,
+      `Crop: ${selectedPlot.cropName}`,
+      `Plot: ${selectedPlot.plotName} (${formatArea(selectedPlot.totalGuntha).formatted})`,
+      `Day: ${day.day}`,
+      `Date: ${formatScheduleDate(day.date, "en")}`,
+      "",
+      entries.join("\n\n"),
+    ].join("\n");
+
+    setWaModal({
+      isOpen: true,
+      farmerName: farmer.name,
+      whatsappNumber: farmer.whatsapp || farmer.mobile,
+      message,
+    });
+  };
+
+  const handleEditTimelineSpray = (item: PersonalizedSprayItem) => {
+    if (!selectedPlot) return;
+    setEditingSprayId(item.id);
+    setSprayForm({
+      day: item.day,
+      scheduledDate:
+        item.scheduledDate ||
+        dateFromCropDay(selectedPlot.sowingDate, item.day) ||
+        getDateInIndia(),
+      time: item.time,
+      medicineId: item.medicineId,
+      medicineName: item.medicineName,
+      quantity: item.quantity,
+      unit: item.unit,
+      waterQuantity: item.waterQuantity,
+      note: item.note,
+    });
+    setShowSprayForm(true);
+  };
+
+  const handleEditTimelineFertilizer = (item: PersonalizedFertilizerItem) => {
+    if (!selectedPlot) return;
+    setEditingFertId(item.id);
+    setFertForm({
+      day: item.day,
+      scheduledDate:
+        item.scheduledDate ||
+        dateFromCropDay(selectedPlot.sowingDate, item.day) ||
+        getDateInIndia(),
+      stage: item.stage,
+      fertilizerId: item.fertilizerId,
+      fertilizerName: item.fertilizerName,
+      quantity: item.quantity,
+      unit: item.unit,
+      applicationMethod: item.applicationMethod,
+      waterQuantity: item.waterQuantity || "",
+      note: item.note,
+    });
+    setShowFertForm(true);
+  };
+
+  const handleToggleTimelineCompleted = async (
+    type: "spray" | "fertilizer",
+    itemId: string
+  ) => {
+    if (!selectedPlot) return;
+    try {
+      const response = await fetch(
+        `/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "TOGGLE_COMPLETED", type, itemId }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to update schedule completion.");
+      }
+
+      const updatedPlots = farmer.plots.map((plot) =>
+        plot.id === selectedPlot.id ? result.plot : plot
+      );
+      setFarmer({ ...farmer, plots: updatedPlots });
+      showNotification("success", "Schedule completion updated for this plot.");
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error ? error.message : "Unable to update schedule completion."
+      );
+    }
   };
 
   // 3. Save / Update Personalized Spray Schedule item
@@ -546,7 +746,7 @@ export default function FarmerDetailsPage() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-start space-x-3.5">
-            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
+            <div className="w-13 h-13 rounded-2xl bg-linear-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
               👨‍🌾
             </div>
             <div>
@@ -686,7 +886,7 @@ export default function FarmerDetailsPage() {
 
       {/* 3. Selected Plot Header Banner & Customization Rule */}
       {selectedPlot && (
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-linear-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center space-x-2">
               <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-emerald-800 text-white">
@@ -712,6 +912,27 @@ export default function FarmerDetailsPage() {
                 <strong>only to {farmer.name}'s field</strong>.
               </span>
             </div>
+            <div
+              className={`mt-2 rounded-lg border px-3 py-2 text-xs ${
+                selectedScheduleProgress?.status === "COMPLETED"
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : "border-emerald-200 bg-white/80 text-slate-700"
+              }`}
+            >
+              <strong>Released:</strong>{" "}
+              {selectedScheduleProgress
+                ? `Day 1–${selectedScheduleProgress.totalDaysReleased}`
+                : "No days released"}
+              {" · "}<strong>Last delivered:</strong>{" "}
+              {selectedScheduleProgress?.lastDeliveredDay || 0}
+              {" · "}<strong>Current day:</strong>{" "}
+              {selectedScheduleProgress?.currentDay || 0}
+              {" · "}<strong>Status:</strong>{" "}
+              {selectedScheduleProgress?.status || "Not started"}
+              {selectedScheduleProgress?.status === "COMPLETED" && (
+                <span> — ready for the next schedule extension.</span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -733,6 +954,96 @@ export default function FarmerDetailsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {selectedPlot && (
+        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900">Day-by-Day Plot Schedule</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedPlot.plotName} · {selectedPlot.cropName}
+                {plotTimeline?.progress && (
+                  <>
+                    {" · "}Day {Math.min(
+                      plotTimeline.currentDay,
+                      plotTimeline.totalDaysReleased
+                    )} / {plotTimeline.totalDaysReleased}
+                    {" · "}Started {formatScheduleDate(
+                      plotTimeline.progress.scheduleStartDate,
+                      "en"
+                    )}
+                  </>
+                )}
+              </p>
+            </div>
+            {plotTimeline && (
+              <span
+                className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                  plotTimeline.status === "COMPLETED"
+                    ? "bg-amber-100 text-amber-900"
+                    : plotTimeline.status === "ACTIVE"
+                      ? "bg-emerald-100 text-emerald-900"
+                      : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                {plotTimeline.status === "NOT_RELEASED"
+                  ? "Waiting for release"
+                  : plotTimeline.status}
+              </span>
+            )}
+          </div>
+
+          {plotTimelineLoading && (
+            <p className="text-xs text-slate-500">Loading released schedule days…</p>
+          )}
+          {plotTimelineError && (
+            <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">
+              {plotTimelineError}
+            </p>
+          )}
+          {plotTimeline && (
+            <PlotScheduleTimeline
+              key={plotTimeline.plot.id}
+              timeline={plotTimeline}
+              admin
+              onEditSpray={handleEditTimelineSpray}
+              onDeleteSpray={handleDeleteSprayItem}
+              onEditFertilizer={handleEditTimelineFertilizer}
+              onDeleteFertilizer={handleDeleteFertItem}
+              onToggleCompleted={handleToggleTimelineCompleted}
+              onAddSpray={(day) => {
+                if (!selectedPlot) return;
+                setEditingSprayId(null);
+                setSprayForm((current) => ({
+                  ...current,
+                  day,
+                  scheduledDate:
+                    dateFromCropDay(
+                      plotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
+                      day
+                    ) || getDateInIndia(),
+                }));
+                setShowSprayForm(true);
+              }}
+              onAddFertilizer={(day) => {
+                if (!selectedPlot) return;
+                setEditingFertId(null);
+                setFertForm((current) => ({
+                  ...current,
+                  day,
+                  scheduledDate:
+                    dateFromCropDay(
+                      plotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
+                      day
+                    ) || getDateInIndia(),
+                }));
+                setShowFertForm(true);
+              }}
+              onSendWhatsApp={handleOpenTimelineWhatsApp}
+            />
+          )}
+        </section>
       )}
 
       {/* 4. Schedules View Switcher (Spray Schedule vs Fertilizer Schedule) */}
@@ -870,13 +1181,17 @@ export default function FarmerDetailsPage() {
                           {item.note || "—"}
                         </td>
                         <td className="py-3 px-3 text-right">
-                          <button
-                            onClick={() => handleOpenSprayWhatsApp(item)}
-                            className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span>Send WhatsApp</span>
-                          </button>
+                          {canSendWhatsAppForDay(item.day) ? (
+                            <button
+                              onClick={() => handleOpenSprayWhatsApp(item)}
+                              className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Send WhatsApp</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">Not in latest release</span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-right space-x-1">
                           <button
@@ -986,13 +1301,17 @@ export default function FarmerDetailsPage() {
                           {item.note || "—"}
                         </td>
                         <td className="py-3 px-3 text-right">
-                          <button
-                            onClick={() => handleOpenFertilizerWhatsApp(item)}
-                            className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
-                          >
-                            <Send className="w-3 h-3" />
-                            <span>Send WhatsApp</span>
-                          </button>
+                          {canSendWhatsAppForDay(item.day) ? (
+                            <button
+                              onClick={() => handleOpenFertilizerWhatsApp(item)}
+                              className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Send WhatsApp</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">Not in latest release</span>
+                          )}
                         </td>
                         <td className="py-3 px-3 text-right space-x-1">
                           <button

@@ -1,11 +1,113 @@
 import { NextResponse } from "next/server";
 import { getDb, saveDb, cloneMasterScheduleForPlot } from "@/lib/db";
+import { isAdminRequest, unauthorizedAdminResponse } from "@/lib/admin-auth";
+import { isFarmerRequest } from "@/lib/farmer-auth";
 import { PersonalizedSprayItem, PersonalizedFertilizerItem } from "@/types";
 import {
+  dateFromCropDay,
+  getDateInIndia,
   getFertilizerScheduledDate,
   getSprayScheduledDate,
   isValidScheduleDate,
 } from "@/lib/schedule-date";
+import {
+  farmerScheduleView,
+  getScheduleDayNumber,
+  updateScheduleProgressStatuses,
+} from "@/lib/schedule-progress";
+import { ScheduleDayStatus } from "@/types";
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string; plotId: string }> }
+) {
+  try {
+    const { id, plotId } = await params;
+    const db = await getDb();
+    const isAdmin = isAdminRequest(req, db);
+    if (!isAdmin && !isFarmerRequest(req, id, db)) {
+      return NextResponse.json(
+        { success: false, message: "Authentication is required." },
+        { status: 401 }
+      );
+    }
+
+    const farmer = db.farmers.find((entry) => entry.id === id);
+    if (!farmer) {
+      return NextResponse.json({ success: false, message: "Farmer not found." }, { status: 404 });
+    }
+    const plot = farmer.plots.find((entry) => entry.id === plotId);
+    if (!plot) {
+      return NextResponse.json({ success: false, message: "Plot not found." }, { status: 404 });
+    }
+
+    if (updateScheduleProgressStatuses(db.scheduleProgress, db.farmers)) {
+      await saveDb(db);
+    }
+
+    const progress =
+      db.scheduleProgress.find(
+        (entry) =>
+          entry.farmerId === id &&
+          entry.plotId === plotId &&
+          entry.cropId === plot.cropName &&
+          entry.masterScheduleId === plot.cropName
+      ) || null;
+    const totalDaysReleased = progress?.totalDaysReleased ?? 0;
+    const currentDate = getDateInIndia();
+    const scheduleStartDate = progress?.scheduleStartDate || plot.sowingDate;
+    const currentDay = progress?.currentDay ??
+      getScheduleDayNumber(scheduleStartDate, currentDate);
+    const visiblePlot = isAdmin
+      ? plot
+      : farmerScheduleView(farmer, db.scheduleProgress).plots.find(
+          (entry) => entry.id === plotId
+        );
+    if (!visiblePlot) {
+      return NextResponse.json({ success: false, message: "Plot not found." }, { status: 404 });
+    }
+    const days = Array.from({ length: totalDaysReleased }, (_, index) => {
+      const day = index + 1;
+      const date = dateFromCropDay(scheduleStartDate, day) || scheduleStartDate;
+      const status: ScheduleDayStatus =
+        date < currentDate ? "COMPLETED" : date === currentDate ? "TODAY" : "UPCOMING";
+      return {
+        day,
+        date,
+        status,
+        sprays: visiblePlot.spraySchedule.filter((item) => item.day === day),
+        fertilizers: visiblePlot.fertilizerSchedule.filter((item) => item.day === day),
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      farmerName: farmer.name,
+      timeline: {
+        plot: {
+          id: plot.id,
+          plotName: plot.plotName,
+          cropName: plot.cropName,
+          sowingDate: plot.sowingDate,
+          areaAcre: plot.areaAcre,
+          areaGuntha: plot.areaGuntha,
+          totalGuntha: plot.totalGuntha,
+        },
+        progress,
+        currentDate,
+        currentDay,
+        totalDaysReleased,
+        remainingDays: Math.max(0, totalDaysReleased - currentDay),
+        status: progress?.status || "NOT_RELEASED",
+        days,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unable to load plot schedule.";
+    console.error("GET plot schedule failed:", error);
+    return NextResponse.json({ success: false, message }, { status: 500 });
+  }
+}
 
 export async function PUT(
   req: Request,
@@ -13,8 +115,9 @@ export async function PUT(
 ) {
   try {
     const { id, plotId } = await params;
-    const body = await req.json();
     const db = await getDb();
+    if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
+    const body = await req.json();
 
     const farmer = db.farmers.find((f) => f.id === id);
     if (!farmer) {

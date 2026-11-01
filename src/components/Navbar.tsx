@@ -28,9 +28,15 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
       .catch(() => {});
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("agri_user");
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (error: unknown) {
+      console.error("Admin logout request failed:", error);
+    } finally {
+      localStorage.removeItem("agri_user");
+      window.location.href = "/login";
+    }
   };
 
   return (
@@ -43,7 +49,7 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
               href={userRole === "ADMIN" ? "/admin" : "/farmer"}
               className="flex items-center space-x-3 group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-emerald-500 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-emerald-500 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
                 <Sprout className="w-6 h-6 text-emerald-950" />
               </div>
               <div className="flex flex-col">
@@ -123,4 +129,3 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
     </header>
   );
 }
-

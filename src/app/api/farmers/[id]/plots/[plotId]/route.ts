@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, saveDb, toPublicFarmer } from "@/lib/db";
+import { isAdminRequest, unauthorizedAdminResponse } from "@/lib/admin-auth";
 
 export async function DELETE(
   req: Request,
@@ -8,6 +9,7 @@ export async function DELETE(
   try {
     const { id, plotId } = await params;
     const db = await getDb();
+    if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
     const farmer = db.farmers.find((item) => item.id === id);
 
     if (!farmer) {

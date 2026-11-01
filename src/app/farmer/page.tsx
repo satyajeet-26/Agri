@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Sprout,
@@ -27,7 +28,14 @@ import {
   getSprayScheduledDate,
 } from "@/lib/schedule-date";
 import { useLanguage } from "@/components/LanguageContext";
-import { Farmer, Plot, PersonalizedSprayItem, PersonalizedFertilizerItem, ShopProfile } from "@/types";
+import {
+  Farmer,
+  Plot,
+  PersonalizedSprayItem,
+  PersonalizedFertilizerItem,
+  ScheduleProgress,
+  ShopProfile,
+} from "@/types";
 
 export default function FarmerPanelPage() {
   const router = useRouter();
@@ -35,6 +43,8 @@ export default function FarmerPanelPage() {
 
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
+  const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
+  const [plotCurrentDays, setPlotCurrentDays] = useState<Record<string, number>>({});
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<"today" | "all" | "spray" | "fertilizer">("today");
   const [loading, setLoading] = useState(true);
@@ -65,6 +75,8 @@ export default function FarmerPanelPage() {
 
           if (jsonF.success && jsonF.farmer) {
             setFarmer(jsonF.farmer);
+            setScheduleProgress(jsonF.scheduleProgress || []);
+            setPlotCurrentDays(jsonF.plotCurrentDays || {});
             if (jsonF.farmer.plots?.length > 0) {
               setSelectedPlotId(jsonF.farmer.plots[0].id);
             }
@@ -82,9 +94,15 @@ export default function FarmerPanelPage() {
     }
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("agri_user");
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (error: unknown) {
+      console.error("Farmer logout request failed:", error);
+    } finally {
+      localStorage.removeItem("agri_user");
+      window.location.href = "/login";
+    }
   };
 
   if (loading || !farmer) {
@@ -99,6 +117,11 @@ export default function FarmerPanelPage() {
   }
 
   const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
+  const selectedProgress = scheduleProgress.find(
+    (progress) =>
+      progress.plotId === selectedPlot?.id &&
+      progress.cropId === selectedPlot?.cropName
+  );
 
   const todayDate = getDateInIndia();
   const allSprays = selectedPlot?.spraySchedule || [];
@@ -178,7 +201,7 @@ export default function FarmerPanelPage() {
       {/* Main Content Area */}
       <main className="max-w-4xl mx-auto w-full px-4 pt-4 space-y-4">
         {/* Welcome Card & Farmer Info */}
-        <div className="bg-gradient-to-r from-emerald-800 to-green-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
+        <div className="bg-linear-to-r from-emerald-800 to-green-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-900/60 text-amber-300">
@@ -223,44 +246,97 @@ export default function FarmerPanelPage() {
           </span>
         </div>
 
-        {/* Plot Selector Chips */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-            {lang === "mr" ? "तुमची शेतजमीन (प्लॉट निवडा):" : "Your Plots (Select Plot):"}
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+        {selectedPlot && selectedProgress && (
+          <div
+            className={`rounded-xl border p-4 text-sm ${
+              selectedProgress.status === "COMPLETED"
+                ? "border-amber-300 bg-amber-50 text-amber-950"
+                : "border-emerald-200 bg-emerald-50 text-emerald-950"
+            }`}
+            role={selectedProgress.status === "COMPLETED" ? "status" : undefined}
+          >
+            <p className="font-bold">
+              {selectedProgress.status === "COMPLETED"
+                ? "Your current spray schedule has been completed."
+                : `Released schedule: Day 1–${selectedProgress.totalDaysReleased}`}
+            </p>
+            {selectedProgress.status === "COMPLETED" ? (
+              <p className="mt-1 text-xs">
+                Please contact your Agri-Ten consultant to receive your next schedule.
+                {shop?.mobile && (
+                  <>
+                    {" "}
+                    <a className="font-bold underline" href={`tel:${shop.mobile}`}>
+                      Contact consultant
+                    </a>
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs">
+                Day {selectedProgress.currentDay} of {selectedProgress.totalDaysReleased}
+              </p>
+            )}
+          </div>
+        )}
+
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900">
+              {lang === "mr" ? "माझे प्लॉट" : "My Plots"}
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {lang === "mr"
+                ? "दिवसनिहाय वेळापत्रक पाहण्यासाठी प्लॉट निवडा."
+                : "Open a plot to view its day-by-day schedule."}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
             {farmer.plots.map((plot) => {
-              const active = plot.id === selectedPlot.id;
+              const progress = scheduleProgress.find(
+                (entry) => entry.plotId === plot.id && entry.cropId === plot.cropName
+              );
+              const currentDay = plotCurrentDays[plot.id] || 0;
               return (
-                <button
+                <Link
                   key={plot.id}
-                  onClick={() => setSelectedPlotId(plot.id)}
-                  className={`flex flex-col text-left p-3 rounded-xl border transition-all shrink-0 min-w-[140px] ${
-                    active
-                      ? "bg-emerald-700 text-white border-emerald-800 shadow-md scale-102"
-                      : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
-                  }`}
+                  href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
+                  className="block rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
                 >
-                  <span className="font-extrabold text-sm">{plot.plotName}</span>
-                  <span
-                    className={`text-xs font-bold mt-0.5 ${
-                      active ? "text-amber-300" : "text-emerald-700"
-                    }`}
-                  >
-                    {plot.cropName}
+                  <span className="flex items-start justify-between gap-2">
+                    <span>
+                      <span className="block text-sm font-extrabold text-slate-900">{plot.plotName}</span>
+                      <span className="mt-0.5 block text-sm font-bold text-emerald-800">{plot.cropName}</span>
+                    </span>
+                    <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" />
                   </span>
-                  <span
-                    className={`text-[11px] mt-1 ${
-                      active ? "text-emerald-100" : "text-slate-500"
-                    }`}
-                  >
-                    {formatArea(plot.totalGuntha).formatted}
+                  <span className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
+                    <span className="text-slate-500">
+                      {lang === "mr" ? "क्षेत्र" : "Area"}
+                      <strong className="mt-0.5 block text-slate-800">{formatArea(plot.totalGuntha).formatted}</strong>
+                    </span>
+                    <span className="text-slate-500">
+                      {lang === "mr" ? "सुरुवात" : "Started"}
+                      <strong className="mt-0.5 block text-slate-800">{formatScheduleDate(plot.sowingDate, lang)}</strong>
+                    </span>
+                    <span className="text-slate-500">
+                      {lang === "mr" ? "सध्याचा दिवस" : "Current day"}
+                      <strong className="mt-0.5 block text-slate-800">
+                        {currentDay > 0 ? `Day ${currentDay}` : "Not started"}
+                      </strong>
+                    </span>
+                    <span className="text-slate-500">
+                      {lang === "mr" ? "जारी" : "Released"}
+                      <strong className="mt-0.5 block text-slate-800">
+                        {progress ? `Day 1–${progress.totalDaysReleased}` : "Not released"}
+                      </strong>
+                    </span>
                   </span>
-                </button>
+                </Link>
               );
             })}
           </div>
-        </div>
+        </section>
 
         {/* 1. TODAY'S SCHEDULE HIGHLIGHT CARD */}
         {selectedPlot && (

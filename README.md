@@ -53,7 +53,16 @@ A full-stack, responsive web application and consultancy management system desig
 - Admin can customize: Day, Medicine, Quantity, Water volume, Timing, or Add/Delete days.
 - One-click **"Reset from Master Template"** button available if re-sync is ever required.
 
-### 8. 💬 1-Click WhatsApp Advisory Integration
+### 8. 📅 Admin-Controlled Progressive Schedule Release
+- Admins can release a crop schedule in day ranges for an individual farmer and plot.
+- Set Days is the cumulative released limit: extending Day 25 to Day 35 releases only Day 26–35.
+- Farmer schedule responses hide unreleased days; progress and append-only extension history are stored with the application database.
+- Released schedules become completed when the crop reaches the final released day. The farmer sees an in-panel completion notice, and completed schedules are highlighted for admins to extend.
+- Farmer/plot schedule progress is separate and does not change the master template.
+- Farmer and admin plot pages show a day-by-day timeline with dates and completed/today/upcoming status; unreleased days and their details are not returned by the plot timeline API.
+- The backend calculates the crop day from the schedule start date using the India calendar date.
+
+### 9. 💬 1-Click WhatsApp Advisory Integration
 - "Send to WhatsApp" button on any scheduled day.
 - Pre-fills professional, structured advisory text in regional language / English:
   - Farmer Name, Crop, Plot Area
@@ -64,19 +73,23 @@ A full-stack, responsive web application and consultancy management system desig
   - Kendra Name & Helpline
 - Uses zero-cost `wa.me` deep linking: opens WhatsApp Web or WhatsApp mobile app directly.
 
-### 9. 🔔 Dated Schedule Reminders
+### 10. 🔔 Dated Schedule Reminders
 - Admins assign an exact calendar date to personalized spray and fertilizer entries in the farmer's profile.
 - The Farmer Panel shows activities on their scheduled date and lists upcoming activities with their dates.
 - For a Marathi WhatsApp reminder, an admin can click **Send WhatsApp** beside a schedule. WhatsApp opens with a prepared message; the admin reviews and sends it manually.
 - This simple mode does not require WhatsApp Business API credentials, templates, database setup, or a scheduled job.
 
-### 10. 📱 Farmer Panel (Mobile-First)
+### 11. 📱 Farmer Panel (Mobile-First)
 - Secure, read-only login for farmers using their Username & Password.
 - Strict data privacy: Farmers see **only their own plots and schedules**.
 - **Today's Schedule Highlight**: Displays today's active spray or fertilizer requirement prominently.
-- **Plot Switcher**: Easily toggle between Plot 1, Plot 2, etc.
-- **Complete Timeline**: Browse past and upcoming sprays and fertigation stages.
+- **My Plots**: Open a plot card to view its own day-wise timeline and schedule details.
+- **Released Timeline**: Browse completed, today's, and upcoming released days with spray/fertilizer details.
 - **Bilingual**: Toggle between **English** and **मराठी (Marathi)** with one click.
+
+Admins can open a farmer's plot timeline to view or customize an individual released day. The existing per-plot edit API keeps these changes separate from the master schedule. The admin dashboard also summarizes progress for each released plot.
+
+Schedule completion is surfaced in the farmer panel and admin dashboard. WhatsApp remains a manual, review-before-send action; no automatic WhatsApp delivery is configured.
 
 ---
 
@@ -137,6 +150,13 @@ application files.
    - `SUPABASE_SERVICE_ROLE_KEY`: the service-role key from the Supabase API
      settings. Keep this secret; do not use a `NEXT_PUBLIC_` variable or commit
      it to source control.
+   - `ADMIN_SESSION_SECRET` (recommended): a long, random secret used to sign
+     the HttpOnly admin session cookie. If omitted, the current admin password
+     is used as the signing secret; changing the password invalidates existing
+     admin sessions.
+   - `FARMER_SESSION_SECRET` (optional): a long, random secret used to sign
+     farmer session cookies. If omitted, `ADMIN_SESSION_SECRET` or the current
+     admin password is used.
 3. On first access, the app initializes an empty application-state table with
    its built-in starter data.
 

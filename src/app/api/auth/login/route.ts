@@ -1,5 +1,17 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, saveDb } from "@/lib/db";
+import {
+  clearAdminSessionCookie,
+  setAdminSessionCookie,
+} from "@/lib/admin-auth";
+import {
+  clearFarmerSessionCookie,
+  setFarmerSessionCookie,
+} from "@/lib/farmer-auth";
+import {
+  farmerScheduleView,
+  updateScheduleProgressStatuses,
+} from "@/lib/schedule-progress";
 
 export async function POST(req: Request) {
   try {
@@ -9,10 +21,13 @@ export async function POST(req: Request) {
     const role = body?.role;
 
     if (!username || !password) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, message: "Username and password are required" },
         { status: 400 }
       );
+      clearAdminSessionCookie(response);
+      clearFarmerSessionCookie(response);
+      return response;
     }
 
     const db = await getDb();
@@ -23,7 +38,7 @@ export async function POST(req: Request) {
         (username.toLowerCase() === db.admin.email.toLowerCase() || username.toLowerCase() === "admin") &&
         password === db.admin.passwordHash
       ) {
-        return NextResponse.json({
+        const response = NextResponse.json({
           success: true,
           role: "ADMIN",
           user: {
@@ -32,11 +47,17 @@ export async function POST(req: Request) {
             shopName: db.shop.name,
           },
         });
+        setAdminSessionCookie(response, db);
+        clearFarmerSessionCookie(response);
+        return response;
       }
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, message: "Invalid Admin email or password" },
         { status: 401 }
       );
+      clearAdminSessionCookie(response);
+      clearFarmerSessionCookie(response);
+      return response;
     }
 
     // Farmer login
@@ -48,13 +69,20 @@ export async function POST(req: Request) {
 
     if (farmer && (farmer.passwordHash === password || farmer.plainPassword === password)) {
       if (!farmer.isActive) {
-        return NextResponse.json(
+        const response = NextResponse.json(
           { success: false, message: "Your account is inactive. Please contact Krushi Seva Kendra." },
           { status: 403 }
         );
+        clearAdminSessionCookie(response);
+        clearFarmerSessionCookie(response);
+        return response;
       }
 
-      return NextResponse.json({
+      if (updateScheduleProgressStatuses(db.scheduleProgress, db.farmers)) {
+        await saveDb(db);
+      }
+
+      const response = NextResponse.json({
         success: true,
         role: "FARMER",
         user: {
@@ -65,15 +93,21 @@ export async function POST(req: Request) {
           village: farmer.village,
           taluka: farmer.taluka,
           district: farmer.district,
-          plots: farmer.plots,
+          plots: farmerScheduleView(farmer, db.scheduleProgress).plots,
         },
       });
+      clearAdminSessionCookie(response);
+      setFarmerSessionCookie(response, farmer.id, db);
+      return response;
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { success: false, message: "Invalid Farmer username or password" },
       { status: 401 }
     );
+    clearAdminSessionCookie(response);
+    clearFarmerSessionCookie(response);
+    return response;
   } catch (error: unknown) {
     console.error("Login request failed:", error);
     const message = error instanceof Error ? error.message : "Login service is unavailable.";

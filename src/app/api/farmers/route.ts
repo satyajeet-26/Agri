@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getDb, saveDb, cloneMasterScheduleForPlot, toPublicFarmer } from "@/lib/db";
+import { isAdminRequest, unauthorizedAdminResponse } from "@/lib/admin-auth";
 import { calculateTotalGuntha } from "@/lib/area";
 import { Farmer, Plot } from "@/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const db = await getDb();
+    if (!isAdminRequest(request, db)) return unauthorizedAdminResponse();
     return NextResponse.json({
       success: true,
       farmers: db.farmers.map(toPublicFarmer),
@@ -18,8 +20,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
     const db = await getDb();
+    if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
+    const body = await req.json();
 
     const requestedUsername =
       typeof body.username === "string" ? body.username.trim() : "";

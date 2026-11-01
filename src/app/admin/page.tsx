@@ -19,9 +19,15 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageContext";
 import { formatArea } from "@/lib/area";
+import { formatScheduleDate } from "@/lib/schedule-date";
 import { WhatsAppModal } from "@/components/WhatsAppModal";
 import { generateSprayWhatsAppMessage, generateFertilizerWhatsAppMessage } from "@/lib/whatsapp";
-import { DatabaseSchema, Farmer } from "@/types";
+import {
+  DatabaseSchema,
+  Farmer,
+  PersonalizedSprayItem,
+  Plot,
+} from "@/types";
 
 export default function AdminDashboardPage() {
   const { t } = useLanguage();
@@ -61,7 +67,7 @@ export default function AdminDashboardPage() {
 
   if (loading || !db) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
+      <div className="flex items-center justify-center min-h-125">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
       </div>
     );
@@ -72,17 +78,43 @@ export default function AdminDashboardPage() {
   const activePlots = (db.farmers || []).flatMap((f) => (f.isActive ? f.plots || [] : []));
   const totalGunthaAll = activePlots.reduce((sum, p) => sum + (p.totalGuntha || 0), 0);
   const totalAreaFormatted = formatArea(totalGunthaAll).formatted;
+  const completedSchedules = (db.scheduleProgress || []).filter(
+    (progress) => progress.status === "COMPLETED"
+  );
 
   const scheduledSprays: {
     farmer: Farmer;
-    plot: any;
-    spray: any;
+    plot: Plot;
+    spray: PersonalizedSprayItem;
   }[] = [];
 
   (db.farmers || []).forEach((farmer) => {
     if (!farmer.isActive) return;
     (farmer.plots || []).forEach((plot) => {
+      const progress = (db.scheduleProgress || []).find(
+        (entry) =>
+          entry.farmerId === farmer.id &&
+          entry.plotId === plot.id &&
+          entry.cropId === plot.cropName
+      );
+      const latestRelease = (db.scheduleExtensionHistory || [])
+        .filter(
+          (entry) =>
+            entry.farmerId === farmer.id &&
+            entry.plotId === plot.id &&
+            entry.cropId === plot.cropName
+        )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0];
+      if (!progress || !latestRelease) return;
+
       (plot.spraySchedule || []).forEach((spray) => {
+        if (
+          spray.day < latestRelease.releasedStartDay ||
+          spray.day > latestRelease.releasedEndDay ||
+          spray.day > progress.totalDaysReleased
+        ) {
+          return;
+        }
         scheduledSprays.push({ farmer, plot, spray });
       });
     });
@@ -120,10 +152,10 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* 1. Header with Shop Logo & Name */}
-      <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+      <div className="bg-linear-to-r from-emerald-800 via-emerald-700 to-green-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-emerald-400 flex items-center justify-center shadow-lg text-emerald-950 font-black text-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-amber-400 to-emerald-400 flex items-center justify-center shadow-lg text-emerald-950 font-black text-2xl">
               🌾
             </div>
             <div>
@@ -190,7 +222,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Total Area Under Consultancy (Acre / Guntha) */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200/80 flex items-center justify-between hover:shadow-md transition-shadow bg-gradient-to-br from-white to-emerald-50/50">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200/80 flex items-center justify-between hover:shadow-md transition-shadow bg-linear-to-br from-white to-emerald-50/50">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               {t("totalAreaUnderConsultancy")}
@@ -208,6 +240,127 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {completedSchedules.length > 0 && (
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-bold">Schedule Completed — Extension Needed</h2>
+              <p className="mt-1 text-xs">
+                These farmers have reached the final day currently released to them.
+              </p>
+            </div>
+            <Link
+              href="/admin/schedules/spray"
+              className="w-fit rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800"
+            >
+              Open Set Days
+            </Link>
+          </div>
+          <ul className="mt-3 space-y-1 text-xs">
+            {completedSchedules.map((progress) => {
+              const farmer = db.farmers.find((entry) => entry.id === progress.farmerId);
+              const plot = farmer?.plots.find((entry) => entry.id === progress.plotId);
+              return (
+                <li key={progress.id}>
+                  <Link
+                    href="/admin/schedules/spray"
+                    className="font-semibold underline"
+                  >
+                    {farmer?.name || "Farmer"} — {plot?.cropName || progress.cropId}
+                    {" · "}Last completed day: {progress.lastDeliveredDay}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-bold text-slate-900">Plot Schedule Progress</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Farmer → Plot → released schedule status
+            </p>
+          </div>
+          <Link
+            href="/admin/schedules/spray"
+            className="w-fit rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+          >
+            Manage Set Days
+          </Link>
+        </div>
+
+        {(db.scheduleProgress || []).length === 0 ? (
+          <p className="rounded-lg bg-slate-50 p-4 text-xs text-slate-600">
+            No plot schedules have been released yet.
+          </p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {db.scheduleProgress.map((progress) => {
+              const farmer = db.farmers.find((entry) => entry.id === progress.farmerId);
+              const plot = farmer?.plots.find((entry) => entry.id === progress.plotId);
+              if (!farmer || !plot) return null;
+
+              const currentDay = Math.min(
+                Math.max(progress.currentDay, 0),
+                progress.totalDaysReleased
+              );
+              const percent = progress.totalDaysReleased
+                ? (currentDay / progress.totalDaysReleased) * 100
+                : 0;
+
+              return (
+                <article
+                  key={progress.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{farmer.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-600">
+                        {plot.cropName} · {plot.plotName} · {formatArea(plot.totalGuntha).formatted}
+                      </p>
+                    </div>
+                    <span
+                      className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        progress.status === "COMPLETED"
+                          ? "bg-amber-100 text-amber-900"
+                          : "bg-emerald-100 text-emerald-900"
+                      }`}
+                    >
+                      {progress.status === "COMPLETED" ? "Completed" : "Active"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+                    <strong className="text-slate-800">
+                      Day {currentDay} / {progress.totalDaysReleased}
+                    </strong>
+                    <span className="text-slate-500">
+                      Started {formatScheduleDate(progress.scheduleStartDate, "en")}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-emerald-600"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <Link
+                    href={`/admin/farmers/${encodeURIComponent(farmer.id)}?plotId=${encodeURIComponent(plot.id)}`}
+                    className="mt-3 inline-flex rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
+                  >
+                    Open farmer plots and timeline
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       {/* 3. Spray Schedule Overview with 1-Click WhatsApp Button */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -220,7 +373,7 @@ export default function AdminDashboardPage() {
                 {t("todaysSchedules")}
               </h2>
               <p className="text-xs text-slate-500">
-                Day-based crop spray overview for all active plots
+                Latest released spray days for all active plots
               </p>
             </div>
           </div>
@@ -391,4 +544,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-

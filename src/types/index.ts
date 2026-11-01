@@ -124,6 +124,7 @@ export interface MasterCropSchedule {
 // Farmer & Plot Details
 export interface PersonalizedSprayItem {
   id: string;
+  masterScheduleItemId?: string;
   day: number;
   scheduledDate?: string;
   time: ScheduleTime;
@@ -138,6 +139,7 @@ export interface PersonalizedSprayItem {
 
 export interface PersonalizedFertilizerItem {
   id: string;
+  masterScheduleItemId?: string;
   day: number;
   scheduledDate?: string;
   stage: string;
@@ -184,6 +186,64 @@ export interface Farmer {
   plots: Plot[];
 }
 
+export type ScheduleProgressStatus = "ACTIVE" | "COMPLETED";
+
+export interface ScheduleProgress {
+  id: string;
+  farmerId: string;
+  plotId: string;
+  cropId: string;
+  masterScheduleId: string;
+  totalDaysReleased: number;
+  lastDeliveredDay: number;
+  currentDay: number;
+  scheduleStartDate: string;
+  scheduleEndDate: string;
+  status: ScheduleProgressStatus;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ScheduleDayStatus = "COMPLETED" | "TODAY" | "UPCOMING";
+
+export interface ScheduleTimelineDay {
+  day: number;
+  date: string;
+  status: ScheduleDayStatus;
+  sprays: PersonalizedSprayItem[];
+  fertilizers: PersonalizedFertilizerItem[];
+}
+
+export interface PlotScheduleTimeline {
+  plot: Pick<
+    Plot,
+    "id" | "plotName" | "cropName" | "sowingDate" | "areaAcre" | "areaGuntha" | "totalGuntha"
+  >;
+  progress: ScheduleProgress | null;
+  currentDate: string;
+  currentDay: number;
+  totalDaysReleased: number;
+  remainingDays: number;
+  status: "NOT_RELEASED" | ScheduleProgressStatus;
+  days: ScheduleTimelineDay[];
+}
+
+export interface ScheduleExtensionHistory {
+  id: string;
+  farmerId: string;
+  plotId: string;
+  cropId: string;
+  masterScheduleId: string;
+  previousTotalDays: number;
+  newTotalDays: number;
+  releasedStartDay: number;
+  releasedEndDay: number;
+  actionType: "INITIAL" | "EXTENSION";
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface AdminUser {
   email: string;
   passwordHash: string;
@@ -204,4 +264,6 @@ export interface DatabaseSchema {
   fertilizers: Fertilizer[];
   masterSchedules: Record<string, MasterCropSchedule>; // key: cropName
   farmers: Farmer[];
+  scheduleProgress: ScheduleProgress[];
+  scheduleExtensionHistory: ScheduleExtensionHistory[];
 }

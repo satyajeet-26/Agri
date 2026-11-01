@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getDb, saveDb } from "@/lib/db";
+import { isAdminRequest, unauthorizedAdminResponse } from "@/lib/admin-auth";
 import { MasterCropSchedule } from "@/types";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const db = await getDb();
+    if (!isAdminRequest(request, db)) return unauthorizedAdminResponse();
     return NextResponse.json({ success: true, masterSchedules: db.masterSchedules });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -15,6 +17,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const db = await getDb();
+    if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
     const { action, cropName, scheduleType, item, itemId, newCropName } = body;
 
     if (!cropName && !newCropName) {

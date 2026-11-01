@@ -634,6 +634,8 @@ const INITIAL_DATABASE: DatabaseSchema = {
       ],
     },
   ],
+  scheduleProgress: [],
+  scheduleExtensionHistory: [],
 };
 
 const SUPABASE_TABLE = "krushi_app_state";
@@ -668,6 +670,20 @@ export function toPublicFarmer(
   Reflect.deleteProperty(publicFarmer, "passwordHash");
   Reflect.deleteProperty(publicFarmer, "plainPassword");
   return publicFarmer;
+}
+
+function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
+  if (data.scheduleProgress === undefined) {
+    data.scheduleProgress = [];
+  } else if (!Array.isArray(data.scheduleProgress)) {
+    throw new Error("Database schedule progress is invalid.");
+  }
+  if (data.scheduleExtensionHistory === undefined) {
+    data.scheduleExtensionHistory = [];
+  } else if (!Array.isArray(data.scheduleExtensionHistory)) {
+    throw new Error("Database schedule history is invalid.");
+  }
+  return data;
 }
 
 async function supabaseRequest(
@@ -745,7 +761,7 @@ async function getSupabaseDatabase(
   const state = rows[0]?.state;
 
   if (state && typeof state === "object" && Array.isArray(state.farmers)) {
-    return state;
+    return normalizeDatabase(state);
   }
   if (rows.length > 0) {
     throw new Error("Supabase database state is invalid.");
@@ -779,7 +795,7 @@ function getLocalDatabase(): DatabaseSchema {
       return initialDatabase;
     }
     const raw = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(raw) as DatabaseSchema;
+    return normalizeDatabase(JSON.parse(raw) as DatabaseSchema);
   } catch (error) {
     console.error("Error reading database file:", error);
     throw new Error("Failed to read or update the local database.");
@@ -854,6 +870,7 @@ export function cloneMasterScheduleForPlot(
 
   const spray = master.spraySchedules.map((item, idx) => ({
     id: `psp-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+    masterScheduleItemId: item.id,
     day: item.day,
     time: item.time,
     medicineId: item.medicineId,
@@ -867,6 +884,7 @@ export function cloneMasterScheduleForPlot(
 
   const fertilizer = master.fertilizerSchedules.map((item, idx) => ({
     id: `pfr-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+    masterScheduleItemId: item.id,
     day: item.day,
     stage: item.stage,
     fertilizerId: item.fertilizerId,
