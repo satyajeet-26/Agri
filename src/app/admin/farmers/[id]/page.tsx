@@ -431,7 +431,6 @@ export default function FarmerDetailsPage() {
 
   const handleEditTimelineSpray = (item: PersonalizedSprayItem) => {
     if (!selectedPlot || savingAction) return;
-    setSavingAction("toggle");
     setEditingSprayId(item.id);
     setSprayForm({
       day: item.day,
@@ -451,7 +450,7 @@ export default function FarmerDetailsPage() {
   };
 
   const handleEditTimelineFertilizer = (item: PersonalizedFertilizerItem) => {
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
     setEditingFertId(item.id);
     setFertForm({
       day: item.day,
@@ -475,7 +474,8 @@ export default function FarmerDetailsPage() {
     type: "spray" | "fertilizer",
     itemId: string
   ) => {
-    if (!selectedPlot) return;
+    if (!selectedPlot || savingAction) return;
+    setSavingAction("toggle");
     try {
       const response = await fetchWithTimeout(
         `/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`,
