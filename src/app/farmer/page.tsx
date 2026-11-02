@@ -86,6 +86,7 @@ export default function FarmerPanelPage() {
         const [farmerResponse, generalResponse] = await Promise.all([
           fetch(`/api/farmers/${encodeURIComponent(farmerId)}`, {
             cache: "no-store",
+            credentials: "same-origin",
             signal: controller.signal,
           }),
           fetch("/api/masters/general", {

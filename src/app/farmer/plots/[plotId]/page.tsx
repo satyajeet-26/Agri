@@ -18,14 +18,17 @@ export default function FarmerPlotSchedulePage() {
   const [timeline, setTimeline] = useState<PlotScheduleTimelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    let sessionInvalid = false;
     let requestPending = false;
     let timeoutId: number | undefined;
 
     const loadTimeline = async () => {
+      if (sessionInvalid || cancelled) return;
       const stored = localStorage.getItem("agri_user");
       if (!stored) {
         router.replace("/login");
@@ -48,14 +51,20 @@ export default function FarmerPlotSchedulePage() {
 
         const response = await fetch(
           `/api/farmers/${encodeURIComponent(user.id)}/plots/${encodeURIComponent(plotId)}/schedule`,
-          { cache: "no-store", signal: controller.signal }
+          {
+            cache: "no-store",
+            credentials: "same-origin",
+            signal: controller.signal,
+          }
         );
-        const result = await response.json();
         if (response.status === 401) {
+          sessionInvalid = true;
           localStorage.removeItem("agri_user");
-          router.replace("/login");
+          setSessionExpired(true);
+          setError("Your session has expired. Please log in again.");
           return;
         }
+        const result = await response.json();
         if (!response.ok || !result.success || !result.timeline) {
           throw new Error(result.message || "Unable to load this plot schedule.");
         }
@@ -63,6 +72,7 @@ export default function FarmerPlotSchedulePage() {
           setTimeline(result.timeline);
           setFarmerName(result.farmerName || "");
           setError("");
+          setSessionExpired(false);
         }
       } catch (loadError: unknown) {
         if (cancelled) return;
@@ -80,7 +90,9 @@ export default function FarmerPlotSchedulePage() {
 
     void loadTimeline();
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadTimeline();
+      if (!sessionInvalid && document.visibilityState === "visible") {
+        void loadTimeline();
+      }
     };
     const intervalId = window.setInterval(refreshWhenVisible, 30000);
     window.addEventListener("focus", refreshWhenVisible);
@@ -139,16 +151,25 @@ export default function FarmerPlotSchedulePage() {
         {!loading && error && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <span>{error}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setLoading(true);
-                setRefreshKey((current) => current + 1);
-              }}
-              className="shrink-0 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
-            >
-              Retry
-            </button>
+            {sessionExpired ? (
+              <Link
+                href="/login"
+                className="shrink-0 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
+              >
+                Log in
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setRefreshKey((current) => current + 1);
+                }}
+                className="shrink-0 rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
