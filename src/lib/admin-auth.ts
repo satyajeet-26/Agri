@@ -47,11 +47,21 @@ export function isAdminRequest(request: Request, db: DatabaseSchema): boolean {
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${ADMIN_SESSION_COOKIE}=`));
 
-  if (!cookie) return false;
+  const rejectSession = (reason: string): false => {
+    console.warn("Admin session verification failed.", {
+      path: new URL(request.url).pathname,
+      cookieName: ADMIN_SESSION_COOKIE,
+      cookiePresent: Boolean(cookie),
+      reason,
+    });
+    return false;
+  };
+
+  if (!cookie) return rejectSession("cookie_missing");
 
   const token = cookie.slice(ADMIN_SESSION_COOKIE.length + 1);
   const separator = token.indexOf(".");
-  if (separator <= 0) return false;
+  if (separator <= 0) return rejectSession("malformed_cookie");
 
   const expiration = token.slice(0, separator);
   const signature = token.slice(separator + 1);
@@ -61,11 +71,14 @@ export function isAdminRequest(request: Request, db: DatabaseSchema): boolean {
     expirationSeconds <= Math.floor(Date.now() / 1000) ||
     !/^[a-f0-9]{64}$/.test(signature)
   ) {
-    return false;
+    return rejectSession("invalid_or_expired_cookie");
   }
 
   const expected = sign(expiration, db);
-  return timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"));
+  if (!timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex"))) {
+    return rejectSession("signature_mismatch");
+  }
+  return true;
 }
 
 export function unauthorizedAdminResponse(): NextResponse {

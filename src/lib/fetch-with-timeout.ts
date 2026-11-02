@@ -9,6 +9,7 @@ export async function fetchWithTimeout(
   try {
     return await fetch(input, {
       ...init,
+      credentials: init.credentials ?? "same-origin",
       cache: init.cache ?? "no-store",
       signal: controller.signal,
     });
