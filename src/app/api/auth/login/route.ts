@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb, saveDb } from "@/lib/db";
 import {
   clearAdminSessionCookie,
+  ADMIN_SESSION_COOKIE,
   setAdminSessionCookie,
 } from "@/lib/admin-auth";
 import {
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
         });
         setAdminSessionCookie(response, db);
         clearFarmerSessionCookie(response);
+        console.info("Admin login session cookie created.", {
+          hostname: new URL(req.url).hostname,
+          path: new URL(req.url).pathname,
+          cookieName: ADMIN_SESSION_COOKIE,
+          setCookieGenerated: response.headers.has("set-cookie"),
+        });
         return response;
       }
       const response = NextResponse.json(

@@ -24,7 +24,7 @@ export function setAdminSessionCookie(response: NextResponse, db: DatabaseSchema
   response.cookies.set(ADMIN_SESSION_COOKIE, `${expiration}.${sign(expiration, db)}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: ADMIN_SESSION_MAX_AGE,
   });
@@ -34,7 +34,7 @@ export function clearAdminSessionCookie(response: NextResponse): void {
   response.cookies.set(ADMIN_SESSION_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: 0,
   });
@@ -49,6 +49,7 @@ export function isAdminRequest(request: Request, db: DatabaseSchema): boolean {
 
   const rejectSession = (reason: string): false => {
     console.warn("Admin session verification failed.", {
+      hostname: new URL(request.url).hostname,
       path: new URL(request.url).pathname,
       cookieName: ADMIN_SESSION_COOKIE,
       cookiePresent: Boolean(cookie),
