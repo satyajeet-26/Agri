@@ -71,6 +71,7 @@ export default function FarmerDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [savingAction, setSavingAction] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Selected plot for viewing & customization
@@ -161,6 +162,17 @@ export default function FarmerDetailsPage() {
         fetchWithTimeout("/api/schedules/master"),
         fetchWithTimeout("/api/schedules/release"),
       ]);
+
+      if (
+        [resFarmer, resGen, resMed, resSched, resRelease].some(
+          (response) => response.status === 401
+        )
+      ) {
+        setSessionExpired(true);
+        setLoadError("Your session has expired. Please log in again.");
+        router.replace("/login");
+        return;
+      }
 
       const jsonFarmer = await resFarmer.json();
       const jsonGen = await resGen.json();
@@ -283,16 +295,25 @@ export default function FarmerDetailsPage() {
       <div role="alert" className="mx-auto mt-8 max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
         <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-600" />
         <p className="text-sm text-slate-800">{loadError || "Unable to load this farmer."}</p>
-        <button
-          type="button"
-          onClick={() => {
-            setLoading(true);
-            void loadData();
-          }}
-          className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
-        >
-          Retry
-        </button>
+        {sessionExpired ? (
+          <Link
+            href="/login"
+            className="mt-4 inline-block rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+          >
+            Log in
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              void loadData();
+            }}
+            className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+          >
+            Retry
+          </button>
+        )}
       </div>
     );
   }

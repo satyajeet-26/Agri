@@ -73,11 +73,12 @@ export default function FarmerPanelPage() {
 
     const farmerId = user.id;
     let cancelled = false;
+    let sessionInvalid = false;
     let requestPending = false;
     let timeoutId: number | undefined;
 
     const refreshFarmerData = async () => {
-      if (requestPending || cancelled) return;
+      if (requestPending || cancelled || sessionInvalid) return;
       requestPending = true;
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), 15000);
@@ -100,6 +101,7 @@ export default function FarmerPanelPage() {
         ]);
 
         if (farmerResponse.status === 401) {
+          sessionInvalid = true;
           localStorage.removeItem("agri_user");
           router.replace("/login");
           return;
@@ -138,7 +140,9 @@ export default function FarmerPanelPage() {
     };
 
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void refreshFarmerData();
+      if (!sessionInvalid && document.visibilityState === "visible") {
+        void refreshFarmerData();
+      }
     };
 
     void refreshFarmerData();

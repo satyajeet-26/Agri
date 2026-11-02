@@ -150,16 +150,17 @@ application files.
    - `SUPABASE_SERVICE_ROLE_KEY`: the service-role key from the Supabase API
      settings. Keep this secret; do not use a `NEXT_PUBLIC_` variable or commit
      it to source control.
-   - `ADMIN_SESSION_SECRET`: a long, random secret used to sign the HttpOnly
-     admin session cookie.
-   - `FARMER_SESSION_SECRET`: a long, random secret used to sign farmer session
-     cookies.
+   - `ADMIN_SESSION_SECRET` (recommended): a long, random secret used to sign
+     the HttpOnly admin session cookie.
+   - `FARMER_SESSION_SECRET` (recommended): a long, random secret used to sign
+     farmer session cookies.
 
-   Set both session secrets in every Vercel environment where users can log in,
-   and keep each value stable across deployments. If omitted, the app falls
-   back to the current admin password hash; changing that password can
-   invalidate existing admin and farmer sessions. Rotating a session secret
-   also requires users to log in again.
+   Keep configured session secrets stable across deployments. If either is
+   omitted, its signing key falls back to `SUPABASE_SERVICE_ROLE_KEY` on
+   Vercel, which remains stable across serverless instances. Rotating a
+   configured session secret or the Supabase service-role key requires users
+   to log in again. Outside Vercel, the fallback is the current admin password
+   hash.
 3. On first access, the app initializes an empty application-state table with
    its built-in starter data.
 

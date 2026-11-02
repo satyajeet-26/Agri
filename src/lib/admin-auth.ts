@@ -6,7 +6,11 @@ export const ADMIN_SESSION_COOKIE = "agri_admin_session";
 const ADMIN_SESSION_MAX_AGE = 60 * 60 * 12;
 
 function getSigningSecret(db: DatabaseSchema): string {
-  return process.env.ADMIN_SESSION_SECRET?.trim() || db.admin.passwordHash;
+  return (
+    process.env.ADMIN_SESSION_SECRET?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    db.admin.passwordHash
+  );
 }
 
 function sign(expiration: string, db: DatabaseSchema): string {
