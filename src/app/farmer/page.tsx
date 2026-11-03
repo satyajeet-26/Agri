@@ -12,6 +12,7 @@ import {
   Phone,
   ShieldCheck,
   ChevronRight,
+  BellRing,
 } from "lucide-react";
 import { formatArea } from "@/lib/area";
 import {
@@ -208,6 +209,15 @@ export default function FarmerPanelPage() {
     ? allFertilizers.filter((item) => getFertilizerScheduledDate(selectedPlot, item) === todayDate)
     : [];
   const hasScheduleToday = todaysSprays.length > 0 || todaysFertilizers.length > 0;
+  const plotScheduleNotifications = farmer.plots.flatMap((plot) => {
+    const sprays = plot.spraySchedule.filter(
+      (item) => getSprayScheduledDate(plot, item) === todayDate
+    );
+    const fertilizers = plot.fertilizerSchedule.filter(
+      (item) => getFertilizerScheduledDate(plot, item) === todayDate
+    );
+    return sprays.length || fertilizers.length ? [{ plot, sprays, fertilizers }] : [];
+  });
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col text-slate-900 pb-12">
@@ -326,6 +336,44 @@ export default function FarmerPanelPage() {
               : "This schedule is personalized for your plot by your Krushi Seva Kendra expert. (Read-Only access)"}
           </span>
         </div>
+
+        {plotScheduleNotifications.length > 0 && (
+          <section
+            aria-label={lang === "mr" ? "आजचे वेळापत्रक सूचना" : "Today's schedule notifications"}
+            className="space-y-2 rounded-2xl border border-emerald-400 bg-emerald-100 p-4 shadow-sm"
+          >
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-emerald-950">
+              <BellRing className="h-4 w-4 shrink-0" />
+              {lang === "mr" ? "आजच्या वेळापत्रकासाठी सूचना" : "Schedule notification for today"}
+            </h3>
+            {plotScheduleNotifications.map(({ plot, sprays, fertilizers }) => (
+              <Link
+                key={plot.id}
+                href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
+                className="flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-white p-3 text-xs transition hover:border-emerald-600 hover:bg-emerald-50"
+              >
+                <span>
+                  <strong className="block text-emerald-950">
+                    {plot.plotName} · {plot.cropName}
+                  </strong>
+                  <span className="mt-0.5 block text-emerald-900">
+                    {[
+                      sprays.length > 0 &&
+                        `${sprays.length} ${lang === "mr" ? "फवारणी" : sprays.length === 1 ? "spray" : "sprays"}`,
+                      fertilizers.length > 0 &&
+                        `${fertilizers.length} ${lang === "mr" ? "खत" : fertilizers.length === 1 ? "fertilizer" : "fertilizers"}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    {" — "}
+                    {lang === "mr" ? "तपशील पाहण्यासाठी प्लॉट उघडा" : "Open plot to view details"}
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-emerald-700" />
+              </Link>
+            ))}
+          </section>
+        )}
 
         {selectedPlot && selectedProgress && (
           <div
