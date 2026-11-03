@@ -11,6 +11,7 @@ import {
   Send,
   SprayCan,
   Wheat,
+  X,
 } from "lucide-react";
 import {
   formatScheduleDate,
@@ -77,11 +78,7 @@ export function PlotScheduleTimeline({
   onAddFertilizer,
   onSendWhatsApp,
 }: PlotScheduleTimelineProps) {
-  const [selectedDay, setSelectedDay] = useState<number | null>(
-    timeline.days.find((entry) => entry.status === "TODAY")?.day ??
-      timeline.days[timeline.days.length - 1]?.day ??
-      null
-  );
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   return (
     <section aria-label="Day-wise plot schedule" className="space-y-4">
@@ -97,42 +94,68 @@ export function PlotScheduleTimeline({
           </p>
         </div>
       ) : (
-        <ol className="space-y-3 border-l-2 border-emerald-100 pl-4 sm:pl-5">
-          {timeline.days.map((entry) => {
-            const expanded = selectedDay === entry.day;
-            const isToday = entry.status === "TODAY";
-            const hasItems = entry.sprays.length > 0 || entry.fertilizers.length > 0;
-            const cardStyle = isToday
-              ? "border-amber-300 bg-amber-50 shadow-sm"
-              : entry.status === "COMPLETED"
-                ? "border-emerald-200 bg-emerald-50/60"
-                : "border-slate-200 bg-white";
+        <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-700">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm border border-emerald-700 bg-emerald-500" />
+              {language === "mr" ? "आजचा दिवस" : "Current day"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm border border-sky-600 bg-sky-200" />
+              {language === "mr" ? "पुढील दिवस" : "Upcoming days"}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm border border-slate-600 bg-slate-300" />
+              {language === "mr" ? "मागील दिवस" : "Past days"}
+            </span>
+            <span className="text-slate-500">
+              {language === "mr"
+                ? "फवारणी किंवा खत पाहण्यासाठी दिवस निवडा."
+                : "Select a day to view its spray or fertilizer schedule."}
+            </span>
+          </div>
 
-            return (
-              <li key={entry.day} className="relative">
+          <ol className="space-y-3 border-l-2 border-slate-200 pl-4 sm:pl-5">
+            {timeline.days.map((entry) => {
+              const expanded = selectedDay === entry.day;
+              const isToday = entry.status === "TODAY";
+              const isPast = entry.status === "COMPLETED";
+              const hasItems = entry.sprays.length > 0 || entry.fertilizers.length > 0;
+              const cardStyle = isToday
+                ? "border-emerald-600 bg-emerald-200 shadow-sm"
+                : isPast
+                  ? "border-slate-400 bg-slate-200"
+                  : "border-sky-500 bg-sky-100";
+
+              return (
+                <li key={entry.day} className="relative">
                 <span
                   aria-hidden="true"
                   className={`absolute left-[-1.57rem] top-4 flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-white ${
                     isToday
-                      ? "bg-amber-400 text-amber-950"
-                      : entry.status === "COMPLETED"
-                        ? "bg-emerald-600 text-white"
-                        : "bg-slate-300 text-slate-700"
+                      ? "bg-emerald-600 text-white"
+                      : isPast
+                        ? "bg-slate-600 text-white"
+                        : "bg-sky-500 text-white"
                   }`}
                 >
-                  {entry.status === "COMPLETED" ? (
+                  {isPast ? (
                     <CheckCircle2 className="h-4 w-4" />
                   ) : (
                     <span className="h-2 w-2 rounded-full bg-current" />
                   )}
                 </span>
 
-                <div className={`overflow-hidden rounded-xl border ${cardStyle}`}>
+                <div
+                  className={`rounded-xl border ${cardStyle} ${
+                    expanded ? "ring-2 ring-emerald-600 ring-offset-1" : ""
+                  }`}
+                >
                   <button
                     type="button"
                     aria-expanded={expanded}
                     onClick={() => setSelectedDay(expanded ? null : entry.day)}
-                    className="flex min-h-16 w-full items-center justify-between gap-3 p-3 text-left sm:p-4"
+                    className="flex min-h-16 w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:brightness-[0.98] sm:p-4"
                   >
                     <span>
                       <span className="block text-sm font-extrabold text-slate-900">
@@ -146,10 +169,10 @@ export function PlotScheduleTimeline({
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
                           isToday
-                            ? "bg-amber-200 text-amber-950"
-                            : entry.status === "COMPLETED"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-100 text-slate-700"
+                            ? "bg-emerald-700 text-white"
+                            : isPast
+                              ? "bg-slate-400 text-slate-950"
+                              : "bg-sky-300 text-sky-950"
                         }`}
                       >
                         {statusLabel(entry.status, language)}
@@ -163,7 +186,40 @@ export function PlotScheduleTimeline({
                   </button>
 
                   {expanded && (
-                    <div className="space-y-3 border-t border-slate-200/80 bg-white p-3 sm:p-4">
+                    <div
+                      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4"
+                      role="presentation"
+                      onClick={() => setSelectedDay(null)}
+                    >
+                      <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby={`schedule-day-${entry.day}-title`}
+                        onClick={(event) => event.stopPropagation()}
+                        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+                      >
+                        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white p-4">
+                          <div>
+                            <h3
+                              id={`schedule-day-${entry.day}-title`}
+                              className="text-base font-extrabold text-slate-900"
+                            >
+                              {language === "mr" ? `दिवस ${entry.day}` : `Day ${entry.day}`}
+                            </h3>
+                            <p className="mt-0.5 text-xs text-slate-600">
+                              {formatScheduleDate(entry.date, language)} · {statusLabel(entry.status, language)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDay(null)}
+                            aria-label={language === "mr" ? "बंद करा" : "Close"}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                        <div className="space-y-3 p-4 sm:p-5">
                       {!hasItems && (
                         <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
                           {language === "mr"
@@ -192,7 +248,7 @@ export function PlotScheduleTimeline({
                               item.isCompleted
                                 ? "bg-emerald-100 text-emerald-800"
                                 : isToday
-                                  ? "bg-amber-100 text-amber-900"
+                                  ? "bg-emerald-100 text-emerald-900"
                                   : "bg-slate-100 text-slate-600"
                             }`}
                           >
@@ -276,7 +332,7 @@ export function PlotScheduleTimeline({
                               item.isCompleted
                                 ? "bg-emerald-100 text-emerald-800"
                                 : isToday
-                                  ? "bg-amber-100 text-amber-900"
+                                  ? "bg-emerald-100 text-emerald-900"
                                   : "bg-slate-100 text-slate-600"
                             }`}
                           >
@@ -379,13 +435,16 @@ export function PlotScheduleTimeline({
                           )}
                         </div>
                       )}
+                        </div>
+                      </section>
                     </div>
                   )}
                 </div>
               </li>
-            );
-          })}
-        </ol>
+              );
+            })}
+          </ol>
+        </>
       )}
     </section>
   );

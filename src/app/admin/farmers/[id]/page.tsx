@@ -51,6 +51,7 @@ import {
   ScheduleExtensionHistory,
   PlotScheduleTimeline as PlotScheduleTimelineData,
   ShopProfile,
+  MasterCropSchedule,
 } from "@/types";
 
 export default function FarmerDetailsPage() {
@@ -65,9 +66,13 @@ export default function FarmerDetailsPage() {
   const [crops, setCrops] = useState<string[]>([]);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
   const [scheduleHistory, setScheduleHistory] = useState<ScheduleExtensionHistory[]>([]);
+  const [masterSchedules, setMasterSchedules] = useState<Record<string, MasterCropSchedule>>({});
   const [plotTimeline, setPlotTimeline] = useState<PlotScheduleTimelineData | null>(null);
   const [plotTimelineLoading, setPlotTimelineLoading] = useState(false);
   const [plotTimelineError, setPlotTimelineError] = useState("");
+  const [plotTimelineRefresh, setPlotTimelineRefresh] = useState(0);
+  const [setTotalDays, setSetTotalDays] = useState("");
+  const [releaseSaving, setReleaseSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingAction, setSavingAction] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -219,6 +224,7 @@ export default function FarmerDetailsPage() {
       }
 
       if (jsonSched.success && jsonSched.masterSchedules) {
+        setMasterSchedules(jsonSched.masterSchedules);
         setCrops(Object.keys(jsonSched.masterSchedules));
       }
 
@@ -275,7 +281,7 @@ export default function FarmerDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [farmer, id, selectedPlotId]);
+  }, [farmer, id, selectedPlotId, plotTimelineRefresh]);
 
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -324,6 +330,78 @@ export default function FarmerDetailsPage() {
       progress.plotId === selectedPlot?.id &&
       progress.cropId === selectedPlot?.cropName
   );
+  const selectedMasterSchedule = selectedPlot
+    ? masterSchedules[selectedPlot.cropName]
+    : undefined;
+  const maxReleaseDay = selectedMasterSchedule
+    ? Math.max(
+        0,
+        ...selectedMasterSchedule.spraySchedules.map((item) => item.day),
+        ...selectedMasterSchedule.fertilizerSchedules.map((item) => item.day)
+      )
+    : 0;
+  const alreadyReleasedDays = selectedScheduleProgress?.totalDaysReleased || 0;
+  const canExtendSchedule =
+    Boolean(selectedPlot) &&
+    maxReleaseDay > alreadyReleasedDays &&
+    Number.isInteger(Number(setTotalDays)) &&
+    Number(setTotalDays) > alreadyReleasedDays &&
+    Number(setTotalDays) <= maxReleaseDay;
+
+  const handleReleaseSchedule = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedPlot || !canExtendSchedule) return;
+
+    const requestedDays = Number(setTotalDays);
+    const firstNewDay = alreadyReleasedDays + 1;
+    if (
+      !window.confirm(
+        `Current released schedule: ${
+          alreadyReleasedDays ? `Day 1–${alreadyReleasedDays}` : "None"
+        }\nNew total schedule: Day 1–${requestedDays}\nNew days to be released: Day ${firstNewDay}–${requestedDays}\n\nContinue?`
+      )
+    ) {
+      return;
+    }
+
+    setReleaseSaving(true);
+    try {
+      const response = await fetch("/api/schedules/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          farmerId: farmer.id,
+          plotId: selectedPlot.id,
+          totalDays: requestedDays,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        showNotification("error", result.message || "Unable to release schedule days.");
+        return;
+      }
+
+      setScheduleProgress((current) => [
+        ...current.filter((entry) => entry.id !== result.progress.id),
+        result.progress as ScheduleProgress,
+      ]);
+      setScheduleHistory((current) => [
+        ...current.filter(
+          (entry) =>
+            entry.farmerId !== farmer.id || entry.plotId !== selectedPlot.id
+        ),
+        ...(result.history as ScheduleExtensionHistory[]),
+      ]);
+      setSetTotalDays("");
+      setPlotTimelineRefresh((current) => current + 1);
+      showNotification("success", result.message || "Schedule days released.");
+    } catch {
+      showNotification("error", "Network error while releasing schedule days.");
+    } finally {
+      setReleaseSaving(false);
+    }
+  };
+
   const latestScheduleRelease = scheduleHistory
     .filter(
       (entry) =>
@@ -771,6 +849,7 @@ export default function FarmerDetailsPage() {
         setShowAddPlotModal(false);
         if (json.farmer.plots.length > 0) {
           setSelectedPlotId(json.farmer.plots[json.farmer.plots.length - 1].id);
+          setSetTotalDays("");
         }
         showNotification("success", "New plot added and master schedule cloned!");
       }
@@ -807,6 +886,7 @@ export default function FarmerDetailsPage() {
       const updatedFarmer = json.farmer;
       setFarmer(updatedFarmer);
       setSelectedPlotId(updatedFarmer.plots[0]?.id || "");
+      setSetTotalDays("");
       setShowSprayForm(false);
       setShowFertForm(false);
       setEditingSprayId(null);
@@ -979,6 +1059,7 @@ export default function FarmerDetailsPage() {
                 key={plot.id}
                 onClick={() => {
                   setSelectedPlotId(plot.id);
+                  setSetTotalDays("");
                   setEditingSprayId(null);
                   setEditingFertId(null);
                 }}
@@ -1084,6 +1165,68 @@ export default function FarmerDetailsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {selectedPlot && (
+        <section className="space-y-4 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">
+              Set Schedule Days for This Plot
+            </h3>
+            <p className="mt-1 text-xs text-slate-600">
+              {selectedPlot.plotName} · {selectedPlot.cropName}
+              {" — "}Extend this plot’s released schedule without changing the master schedule.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700">
+              <p>
+                <strong>Days currently set:</strong> {alreadyReleasedDays}
+              </p>
+              <p className="mt-1">
+                <strong>Master schedule limit:</strong>{" "}
+                {maxReleaseDay > 0 ? `${maxReleaseDay} days` : "No master days"}
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleReleaseSchedule}
+              className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end"
+            >
+              <label className="flex-1 text-xs font-semibold text-slate-700">
+                Extend total days to
+                <input
+                  type="number"
+                  min={alreadyReleasedDays + 1}
+                  max={maxReleaseDay || undefined}
+                  step={1}
+                  value={setTotalDays}
+                  onChange={(event) => setSetTotalDays(event.target.value)}
+                  placeholder={
+                    maxReleaseDay > alreadyReleasedDays
+                      ? `Enter ${alreadyReleasedDays + 1}–${maxReleaseDay}`
+                      : "No more master days available"
+                  }
+                  disabled={releaseSaving || maxReleaseDay <= alreadyReleasedDays}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={releaseSaving || !canExtendSchedule}
+                className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {releaseSaving ? "Setting days..." : "Set Days"}
+              </button>
+            </form>
+          </div>
+          {alreadyReleasedDays >= maxReleaseDay && maxReleaseDay > 0 && (
+            <p className="text-xs text-emerald-800">
+              This plot has all {maxReleaseDay} days available in its master schedule.
+            </p>
+          )}
+        </section>
       )}
 
       {selectedPlot && (

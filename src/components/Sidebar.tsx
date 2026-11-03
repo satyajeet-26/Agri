@@ -20,6 +20,7 @@ import {
   Tag,
   Flame,
   Bell,
+  CalendarDays,
 } from "lucide-react";
 import { useLanguage } from "./LanguageContext";
 
@@ -67,7 +68,13 @@ export function Sidebar() {
       badge: "Plots & Custom",
     },
     {
-      title: "6. Schedule Reminders",
+      title: "6. Set Days",
+      icon: CalendarDays,
+      href: "/admin/schedules/release",
+      badge: "Schedule Release",
+    },
+    {
+      title: "7. Schedule Reminders",
       icon: Bell,
       href: "/admin/whatsapp-notifications",
       badge: "Manual Send",

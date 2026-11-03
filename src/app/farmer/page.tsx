@@ -4,21 +4,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Sprout,
   Calendar,
-  Clock,
-  Droplets,
-  SprayCan,
-  Wheat,
   MapPin,
   CheckCircle2,
   AlertCircle,
   LogOut,
   Phone,
   ShieldCheck,
-  User,
   ChevronRight,
-  Filter,
 } from "lucide-react";
 import { formatArea } from "@/lib/area";
 import {
@@ -31,22 +24,19 @@ import { useLanguage } from "@/components/LanguageContext";
 import {
   Farmer,
   Plot,
-  PersonalizedSprayItem,
-  PersonalizedFertilizerItem,
   ScheduleProgress,
   ShopProfile,
 } from "@/types";
 
 export default function FarmerPanelPage() {
   const router = useRouter();
-  const { lang, setLang, t } = useLanguage();
+  const { lang, setLang } = useLanguage();
 
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
   const [plotCurrentDays, setPlotCurrentDays] = useState<Record<string, number>>({});
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
-  const [activeFilter, setActiveFilter] = useState<"today" | "all" | "spray" | "fertilizer">("today");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -217,18 +207,6 @@ export default function FarmerPanelPage() {
   const todaysFertilizers = selectedPlot
     ? allFertilizers.filter((item) => getFertilizerScheduledDate(selectedPlot, item) === todayDate)
     : [];
-  const visibleSprays =
-    activeFilter === "today"
-      ? todaysSprays
-      : activeFilter === "fertilizer"
-        ? []
-        : allSprays;
-  const visibleFertilizers =
-    activeFilter === "today"
-      ? todaysFertilizers
-      : activeFilter === "spray"
-        ? []
-        : allFertilizers;
   const hasScheduleToday = todaysSprays.length > 0 || todaysFertilizers.length > 0;
 
   return (
@@ -394,7 +372,7 @@ export default function FarmerPanelPage() {
                 : "Open a plot to view its day-by-day schedule."}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             {farmer.plots.map((plot) => {
               const progress = scheduleProgress.find(
                 (entry) => entry.plotId === plot.id && entry.cropId === plot.cropName
@@ -474,7 +452,7 @@ export default function FarmerPanelPage() {
                 <p className="text-slate-400">
                   {lang === "mr"
                     ? "पुढील दिवसांचे वेळापत्रक पाहण्यासाठी खाली तपासा."
-                    : "Check the timeline below for your upcoming schedule."}
+                    : "Open your plot to view its upcoming schedule."}
                 </p>
               </div>
             ) : (
@@ -575,147 +553,6 @@ export default function FarmerPanelPage() {
           </div>
         )}
 
-        {/* 2. TIMELINE / ALL SCHEDULES FOR THIS PLOT */}
-        {selectedPlot && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-800">
-                {lang === "mr" ? "संपूर्ण पीक वेळापत्रक" : "Complete Crop Schedule"}
-              </h3>
-
-              {/* Filter Tabs */}
-              <div className="flex gap-1.5 overflow-x-auto">
-                <button
-                  onClick={() => setActiveFilter("today")}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                    activeFilter === "today"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {lang === "mr" ? "आजचे" : "Today"}
-                </button>
-                <button
-                  onClick={() => setActiveFilter("spray")}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                    activeFilter === "spray"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {lang === "mr" ? "फवारणी" : "All Sprays"}
-                </button>
-                <button
-                  onClick={() => setActiveFilter("fertilizer")}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                    activeFilter === "fertilizer"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {lang === "mr" ? "खते" : "Fertilizers"}
-                </button>
-                <button
-                  onClick={() => setActiveFilter("all")}
-                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                    activeFilter === "all"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {lang === "mr" ? "सर्व" : "All"}
-                </button>
-              </div>
-            </div>
-
-            {/* List */}
-            <div className="space-y-3">
-              {/* Sprays */}
-              {visibleSprays.map((spray) => (
-                  <div
-                    key={spray.id}
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-900">
-                          {lang === "mr" ? `${spray.day} वा दिवस` : `Day ${spray.day}`}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold">
-                          {formatScheduleDate(
-                            getSprayScheduledDate(selectedPlot, spray) || todayDate,
-                            lang
-                          )}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                          {spray.time}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-slate-900 text-sm">
-                        {spray.medicineName}
-                      </h4>
-                      <p className="text-xs text-emerald-700 font-semibold">
-                        {lang === "mr" ? "प्रमाण:" : "Dose:"} {spray.quantity} {spray.unit} • {spray.waterQuantity}
-                      </p>
-                      {spray.note && (
-                        <p className="text-[11px] text-slate-500 italic">
-                          "{spray.note}"
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700">
-                        Schedule
-                      </span>
-                    </div>
-                  </div>
-                ))}
-
-              {/* Fertilizers */}
-              {visibleFertilizers.map((fert) => (
-                  <div
-                    key={fert.id}
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">
-                          {lang === "mr" ? `${fert.day} वा दिवस` : `Day ${fert.day}`}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-semibold">
-                          {formatScheduleDate(
-                            getFertilizerScheduledDate(selectedPlot, fert) || todayDate,
-                            lang
-                          )}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                          {fert.stage}
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-slate-900 text-sm">
-                        {fert.fertilizerName}
-                      </h4>
-                      <p className="text-xs text-emerald-700 font-semibold">
-                        {lang === "mr" ? "प्रमाण:" : "Dose:"} {fert.quantity} {fert.unit} • {fert.applicationMethod}
-                      </p>
-                      {fert.note && (
-                        <p className="text-[11px] text-slate-500 italic">
-                          "{fert.note}"
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700">
-                        Schedule
-                      </span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

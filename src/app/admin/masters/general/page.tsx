@@ -46,6 +46,8 @@ export default function GeneralMasterPage() {
     email: "",
     address: "",
     licenseNumber: "",
+    fertilizerLicenseNumber: "",
+    pesticideLicenseNumber: "",
     gstNumber: "",
   });
 
@@ -76,7 +78,13 @@ export default function GeneralMasterPage() {
       const json = await res.json();
       if (json.success) {
         const d = json.data;
-        setShop(d.shop || {});
+        setShop({
+          ...d.shop,
+          fertilizerLicenseNumber:
+            d.shop?.fertilizerLicenseNumber || d.shop?.licenseNumber || "",
+          pesticideLicenseNumber:
+            d.shop?.pesticideLicenseNumber || d.shop?.licenseNumber || "",
+        });
         setAdminEmail(d.admin?.email || "");
         setYears(d.years || []);
         setUnits(d.units || []);
@@ -584,14 +592,31 @@ export default function GeneralMasterPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Fertilizer & Pesticide License No.
+                Fertilizer License No.
               </label>
               <input
                 type="text"
-                value={shop.licenseNumber}
-                onChange={(e) => setShop({ ...shop, licenseNumber: e.target.value })}
+                value={shop.fertilizerLicenseNumber || ""}
+                onChange={(e) =>
+                  setShop({ ...shop, fertilizerLicenseNumber: e.target.value })
+                }
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="AGRI/MH/STR/2026/8942"
+                placeholder="Enter fertilizer license number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Pesticide License No.
+              </label>
+              <input
+                type="text"
+                value={shop.pesticideLicenseNumber || ""}
+                onChange={(e) =>
+                  setShop({ ...shop, pesticideLicenseNumber: e.target.value })
+                }
+                className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                placeholder="Enter pesticide license number"
               />
             </div>
 

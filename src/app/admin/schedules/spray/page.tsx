@@ -9,31 +9,18 @@ import {
   Save,
   CheckCircle,
   AlertCircle,
-  Clock,
   Droplets,
-  Calendar,
-  Layers,
 } from "lucide-react";
 import {
   MasterCropSchedule,
   MasterSprayItem,
   Medicine,
-  Farmer,
-  ScheduleExtensionHistory,
-  ScheduleProgress,
   ScheduleTime,
 } from "@/types";
 
 export default function SprayMasterPage() {
   const [schedules, setSchedules] = useState<Record<string, MasterCropSchedule>>({});
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
-  const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
-  const [scheduleHistory, setScheduleHistory] = useState<ScheduleExtensionHistory[]>([]);
-  const [selectedReleaseFarmerId, setSelectedReleaseFarmerId] = useState("");
-  const [selectedReleasePlotId, setSelectedReleasePlotId] = useState("");
-  const [setTotalDays, setSetTotalDays] = useState("");
-  const [releaseSaving, setReleaseSaving] = useState(false);
   const [selectedCrop, setSelectedCrop] = useState<string>("Tomato");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -69,16 +56,12 @@ export default function SprayMasterPage() {
 
   const loadData = async () => {
     try {
-      const [resSched, resMed, resFarmers, resRelease] = await Promise.all([
+      const [resSched, resMed] = await Promise.all([
         fetch("/api/schedules/master"),
         fetch("/api/masters/medicines"),
-        fetch("/api/farmers"),
-        fetch("/api/schedules/release"),
       ]);
       const jsonSched = await resSched.json();
       const jsonMed = await resMed.json();
-      const jsonFarmers = await resFarmers.json();
-      const jsonRelease = await resRelease.json();
 
       if (!resSched.ok || !jsonSched.success) {
         throw new Error(jsonSched.message || jsonSched.error || "Unable to load master schedules.");
@@ -112,19 +95,6 @@ export default function SprayMasterPage() {
         }
       }
 
-      if (jsonFarmers.success && Array.isArray(jsonFarmers.farmers)) {
-        setFarmers(jsonFarmers.farmers);
-        const firstFarmer = jsonFarmers.farmers[0] as Farmer | undefined;
-        if (firstFarmer) {
-          setSelectedReleaseFarmerId((current) => current || firstFarmer.id);
-          setSelectedReleasePlotId((current) => current || firstFarmer.plots[0]?.id || "");
-        }
-      }
-
-      if (jsonRelease.success) {
-        setScheduleProgress(jsonRelease.progress || []);
-        setScheduleHistory(jsonRelease.history || []);
-      }
     } catch (err) {
       console.error(err);
       showNotification(
@@ -139,105 +109,6 @@ export default function SprayMasterPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const selectedReleaseFarmer = farmers.find(
-    (farmer) => farmer.id === selectedReleaseFarmerId
-  );
-  const selectedReleasePlot = selectedReleaseFarmer?.plots.find(
-    (plot) => plot.id === selectedReleasePlotId
-  );
-  const selectedReleaseProgress = scheduleProgress.find(
-    (progress) =>
-      progress.farmerId === selectedReleaseFarmerId &&
-      progress.plotId === selectedReleasePlotId &&
-      progress.cropId === selectedReleasePlot?.cropName
-  );
-  const completedSchedules = scheduleProgress.filter(
-    (progress) => progress.status === "COMPLETED"
-  );
-  const selectedReleaseHistory = scheduleHistory
-    .filter(
-      (entry) =>
-        entry.farmerId === selectedReleaseFarmerId &&
-        entry.plotId === selectedReleasePlotId
-    )
-    .slice()
-    .reverse();
-
-  const handleReleaseSchedule = async () => {
-    if (!selectedReleaseFarmer || !selectedReleasePlot) return;
-
-    const alreadyReleased = selectedReleaseProgress?.totalDaysReleased || 0;
-    const requestedDays = Number(setTotalDays);
-    if (!Number.isInteger(requestedDays) || requestedDays < 1) {
-      showNotification("error", "Set Days must be a positive whole number.");
-      return;
-    }
-
-    if (requestedDays <= alreadyReleased) {
-      showNotification(
-        "error",
-        requestedDays === alreadyReleased
-          ? `No new schedule days to release. The farmer has already received ${alreadyReleased} days.`
-          : `The farmer has already received ${alreadyReleased} days. Set Days must be greater than ${alreadyReleased} to extend the schedule.`
-      );
-      return;
-    }
-
-    const firstNewDay = alreadyReleased + 1;
-    const currentlyReleasedRange = alreadyReleased
-      ? `Day 1–${alreadyReleased}`
-      : "None";
-    if (
-      !window.confirm(
-        `Current released schedule: ${currentlyReleasedRange}\n` +
-          `New total schedule: Day 1–${requestedDays}\n` +
-          `New days to be released: Day ${firstNewDay}–${requestedDays}\n\nContinue?`
-      )
-    ) {
-      return;
-    }
-
-    setReleaseSaving(true);
-    try {
-      const response = await fetch("/api/schedules/release", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          farmerId: selectedReleaseFarmer.id,
-          plotId: selectedReleasePlot.id,
-          totalDays: requestedDays,
-        }),
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        showNotification(
-          "error",
-          result.message || "Unable to release schedule days."
-        );
-        return;
-      }
-
-      setScheduleProgress((current) => [
-        ...current.filter((entry) => entry.id !== result.progress.id),
-        result.progress as ScheduleProgress,
-      ]);
-      setScheduleHistory((current) => [
-        ...current.filter(
-          (entry) =>
-            entry.farmerId !== selectedReleaseFarmer.id ||
-            entry.plotId !== selectedReleasePlot.id
-        ),
-        ...(result.history as ScheduleExtensionHistory[]),
-      ]);
-      setSetTotalDays("");
-      showNotification("success", result.message);
-    } catch {
-      showNotification("error", "Network error while releasing schedule days.");
-    } finally {
-      setReleaseSaving(false);
-    }
-  };
 
   const handleAddCrop = async () => {
     if (!newCropName.trim()) return;
@@ -422,16 +293,6 @@ export default function SprayMasterPage() {
 
   const currentCropSchedule = schedules[selectedCrop];
   const sprayList = currentCropSchedule?.spraySchedules || [];
-  const selectedReleaseMaster = selectedReleasePlot
-    ? schedules[selectedReleasePlot.cropName]
-    : undefined;
-  const maxReleaseDay = selectedReleaseMaster
-    ? Math.max(
-        0,
-        ...selectedReleaseMaster.spraySchedules.map((item) => item.day),
-        ...selectedReleaseMaster.fertilizerSchedules.map((item) => item.day)
-      )
-    : 0;
 
   if (loading) {
     return (
@@ -474,157 +335,6 @@ export default function SprayMasterPage() {
           </div>
         )}
       </div>
-
-      <section className="space-y-4 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
-        <div>
-          <h2 className="text-lg font-black text-slate-800">Set Days — Progressive Schedule Release</h2>
-          <p className="mt-1 text-xs text-slate-600">
-            Release a total crop-day limit for one farmer and plot. Previous days remain released and are never sent again.
-          </p>
-        </div>
-
-        {completedSchedules.length > 0 && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
-            <p className="mb-2 text-xs font-bold text-amber-950">
-              Schedule completed — ready for the next extension
-            </p>
-            <div className="space-y-1">
-              {completedSchedules.map((progress) => {
-                const farmer = farmers.find((entry) => entry.id === progress.farmerId);
-                const plot = farmer?.plots.find((entry) => entry.id === progress.plotId);
-                return (
-                  <button
-                    key={progress.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedReleaseFarmerId(progress.farmerId);
-                      setSelectedReleasePlotId(progress.plotId);
-                    }}
-                    className="block text-left text-xs text-amber-950 underline"
-                  >
-                    {farmer?.name || "Farmer"} — {plot?.cropName || progress.cropId}, Day {progress.lastDeliveredDay} completed
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-xs font-semibold text-slate-700">
-            Farmer
-            <select
-              value={selectedReleaseFarmerId}
-              onChange={(event) => {
-                const farmer = farmers.find((entry) => entry.id === event.target.value);
-                setSelectedReleaseFarmerId(event.target.value);
-                setSelectedReleasePlotId(farmer?.plots[0]?.id || "");
-                setSetTotalDays("");
-              }}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
-            >
-              <option value="">Select farmer</option>
-              {farmers.map((farmer) => (
-                <option key={farmer.id} value={farmer.id}>{farmer.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-xs font-semibold text-slate-700">
-            Plot and crop
-            <select
-              value={selectedReleasePlotId}
-              onChange={(event) => {
-                setSelectedReleasePlotId(event.target.value);
-                setSetTotalDays("");
-              }}
-              disabled={!selectedReleaseFarmer?.plots.length}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
-            >
-              <option value="">Select plot</option>
-              {selectedReleaseFarmer?.plots.map((plot) => (
-                <option key={plot.id} value={plot.id}>
-                  {plot.plotName} — {plot.cropName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="text-xs font-semibold text-slate-700">
-            Set total days
-            <input
-              type="number"
-              min={1}
-              max={maxReleaseDay || undefined}
-              step={1}
-              value={setTotalDays}
-              onChange={(event) => setSetTotalDays(event.target.value)}
-              placeholder={maxReleaseDay ? `Maximum ${maxReleaseDay}` : "No master days"}
-              disabled={!selectedReleasePlot || maxReleaseDay === 0}
-              className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
-            />
-          </label>
-        </div>
-
-        {selectedReleasePlot && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-            <p>
-              <strong>Farmer:</strong> {selectedReleaseFarmer?.name}
-              {" · "}<strong>Crop:</strong> {selectedReleasePlot.cropName}
-              {" · "}<strong>Plot:</strong> {selectedReleasePlot.plotName}
-            </p>
-            <p className="mt-1">
-              <strong>Already released:</strong> {selectedReleaseProgress?.totalDaysReleased || 0} days
-              {" · "}<strong>Last delivered day:</strong> {selectedReleaseProgress?.lastDeliveredDay || 0}
-              {" · "}<strong>Current day:</strong> {selectedReleaseProgress?.currentDay || 0}
-              {" · "}<strong>Status:</strong> {selectedReleaseProgress?.status || "Not started"}
-            </p>
-            <p className="mt-1">
-              {selectedReleaseProgress
-                ? `Released range: Day 1–${selectedReleaseProgress.totalDaysReleased}`
-                : "No schedule days have been released."}
-              {maxReleaseDay > 0 && ` · Master schedule maximum: Day ${maxReleaseDay}`}
-            </p>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleReleaseSchedule}
-          disabled={!selectedReleasePlot || !setTotalDays || releaseSaving}
-          className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {releaseSaving ? "Releasing..." : "Extend Schedule"}
-        </button>
-
-        {selectedReleaseHistory.length > 0 && (
-          <div className="overflow-x-auto border-t border-slate-100 pt-4">
-            <h3 className="mb-2 text-sm font-bold text-slate-800">Schedule history</h3>
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="p-2">Action</th>
-                  <th className="p-2">Previous total</th>
-                  <th className="p-2">New total</th>
-                  <th className="p-2">Newly released</th>
-                  <th className="p-2">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {selectedReleaseHistory.map((entry) => (
-                  <tr key={entry.id}>
-                    <td className="p-2">{entry.actionType}</td>
-                    <td className="p-2">{entry.previousTotalDays}</td>
-                    <td className="p-2">{entry.newTotalDays}</td>
-                    <td className="p-2">Day {entry.releasedStartDay}–{entry.releasedEndDay}</td>
-                    <td className="p-2">{new Date(entry.createdAt).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       {/* Crop Selector Bar & Add Crop */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">

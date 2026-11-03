@@ -44,12 +44,14 @@ export default function MedicineMasterPage() {
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [medForm, setMedForm] = useState<{
     name: string;
+    technicalContent: string;
     type: MedicineType;
     companyId: string;
     categoryId: string;
     unitId: string;
   }>({
     name: "",
+    technicalContent: "",
     type: "Liquid",
     companyId: "",
     categoryId: "",
@@ -189,6 +191,7 @@ export default function MedicineMasterPage() {
     const medData: Medicine = {
       id: editingMedId || `med-${Date.now()}`,
       name: medForm.name.trim(),
+      technicalContent: medForm.technicalContent.trim(),
       type: medForm.type,
       companyId: medForm.companyId,
       companyName: comp?.name || "Other",
@@ -209,6 +212,7 @@ export default function MedicineMasterPage() {
     setMedicines(updated);
     setMedForm({
       name: "",
+      technicalContent: "",
       type: "Liquid",
       companyId: companies[0]?.id || "",
       categoryId: categories[0]?.id || "",
@@ -228,6 +232,7 @@ export default function MedicineMasterPage() {
     setEditingMedId(med.id);
     setMedForm({
       name: med.name,
+      technicalContent: med.technicalContent || "",
       type: med.type,
       companyId: med.companyId,
       categoryId: med.categoryId,
@@ -298,6 +303,7 @@ export default function MedicineMasterPage() {
 
   const filteredMedicines = medicines.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (m.technicalContent || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -417,6 +423,7 @@ export default function MedicineMasterPage() {
                     setEditingMedId(null);
                     setMedForm({
                       name: "",
+                      technicalContent: "",
                       type: "Liquid",
                       companyId: companies[0]?.id || "",
                       categoryId: categories[0]?.id || "",
@@ -431,16 +438,31 @@ export default function MedicineMasterPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              <div className="lg:col-span-2">
+              <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Medicine Name & Technical Content *
+                  Medicine Name *
                 </label>
                 <input
                   type="text"
                   required
                   value={medForm.name}
                   onChange={(e) => setMedForm({ ...medForm, name: e.target.value })}
-                  placeholder="e.g. Score (Difenoconazole 25% EC)"
+                  placeholder="e.g. Score"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Technical Content
+                </label>
+                <input
+                  type="text"
+                  value={medForm.technicalContent}
+                  onChange={(e) =>
+                    setMedForm({ ...medForm, technicalContent: e.target.value })
+                  }
+                  placeholder="e.g. Difenoconazole 25% EC"
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -548,6 +570,7 @@ export default function MedicineMasterPage() {
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="py-2.5 px-3">Medicine Name</th>
+                    <th className="py-2.5 px-3">Technical Content</th>
                     <th className="py-2.5 px-3">Type</th>
                     <th className="py-2.5 px-3">Company</th>
                     <th className="py-2.5 px-3">Category</th>
@@ -559,6 +582,7 @@ export default function MedicineMasterPage() {
                   {filteredMedicines.map((m) => (
                     <tr key={m.id} className="hover:bg-slate-50">
                       <td className="py-3 px-3 font-semibold text-slate-800">{m.name}</td>
+                      <td className="py-3 px-3">{m.technicalContent || "—"}</td>
                       <td className="py-3 px-3">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${

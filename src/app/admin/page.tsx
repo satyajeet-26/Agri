@@ -250,7 +250,7 @@ export default function AdminDashboardPage() {
               </p>
             </div>
             <Link
-              href="/admin/schedules/spray"
+              href="/admin/schedules/release"
               className="w-fit rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800"
             >
               Open Set Days
@@ -263,7 +263,7 @@ export default function AdminDashboardPage() {
               return (
                 <li key={progress.id}>
                   <Link
-                    href="/admin/schedules/spray"
+                    href="/admin/schedules/release"
                     className="font-semibold underline"
                   >
                     {farmer?.name || "Farmer"} — {plot?.cropName || progress.cropId}
@@ -285,7 +285,7 @@ export default function AdminDashboardPage() {
             </p>
           </div>
           <Link
-            href="/admin/schedules/spray"
+            href="/admin/schedules/release"
             className="w-fit rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
           >
             Manage Set Days

@@ -16,6 +16,8 @@ export interface ShopProfile {
   email: string;
   address: string;
   licenseNumber?: string;
+  fertilizerLicenseNumber?: string;
+  pesticideLicenseNumber?: string;
   gstNumber?: string;
   logoUrl?: string;
 }
@@ -71,6 +73,7 @@ export interface MedicineCategory {
 export interface Medicine {
   id: string;
   name: string;
+  technicalContent?: string;
   type: MedicineType;
   companyId: string;
   companyName: string;
