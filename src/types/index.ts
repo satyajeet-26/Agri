@@ -280,6 +280,27 @@ export interface FarmDiaryEntry {
   updatedAt: string;
 }
 
+export type MarketRateStatus = "DRAFT" | "PUBLISHED";
+
+export interface MarketRate {
+  id: string;
+  cropName: string;
+  cropVariety: string;
+  state: string;
+  district: string;
+  marketName: string;
+  minimumPrice: number;
+  maximumPrice: number;
+  modalPrice: number;
+  arrivalQuantity: number | null;
+  rateDate: string;
+  status: MarketRateStatus;
+  adminNotes: string;
+  createdByAdmin: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminUser {
   email: string;
   passwordHash: string;
@@ -303,4 +324,5 @@ export interface DatabaseSchema {
   scheduleProgress: ScheduleProgress[];
   scheduleExtensionHistory: ScheduleExtensionHistory[];
   farmDiaryEntries: FarmDiaryEntry[];
+  marketRates: MarketRate[];
 }

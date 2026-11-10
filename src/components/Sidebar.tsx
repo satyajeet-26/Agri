@@ -21,6 +21,7 @@ import {
   Flame,
   Bell,
   CalendarDays,
+  Store,
 } from "lucide-react";
 import { useLanguage } from "./LanguageContext";
 
@@ -78,6 +79,12 @@ export function Sidebar() {
       icon: Bell,
       href: "/admin/whatsapp-notifications",
       badge: "Manual Send",
+    },
+    {
+      title: `8. ${t("menuMarketRates")}`,
+      icon: Store,
+      href: "/admin/market-rates",
+      badge: "Daily Rates",
     },
   ];
 

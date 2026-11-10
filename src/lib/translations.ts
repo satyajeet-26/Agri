@@ -19,6 +19,7 @@ export const translations = {
     menuSprayMaster: "Spray Master",
     menuFertilizerMaster: "Fertilizer Schedule",
     menuFarmerMaster: "Farmer Master",
+    menuMarketRates: "Market Rates",
     
     // Dashboard Stats
     activeFarmers: "Active Farmers",
@@ -98,6 +99,7 @@ export const translations = {
     menuSprayMaster: "फवारणी शेड्युल मास्टर",
     menuFertilizerMaster: "खत शेड्युल मास्टर",
     menuFarmerMaster: "शेतकरी मास्टर",
+    menuMarketRates: "बाजार भाव",
     
     // Dashboard Stats
     activeFarmers: "सक्रिय शेतकरी",
@@ -162,4 +164,3 @@ export const translations = {
     customized: "सानुकूलित",
   },
 };
-

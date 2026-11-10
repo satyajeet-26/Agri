@@ -27,6 +27,7 @@ import {
 import { useLanguage } from "@/components/LanguageContext";
 import {
   Farmer,
+  MarketRate,
   ScheduleProgress,
   ShopProfile,
 } from "@/types";
@@ -38,6 +39,7 @@ export default function FarmerPanelPage() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
+  const [marketRateNotifications, setMarketRateNotifications] = useState<MarketRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -75,7 +77,7 @@ export default function FarmerPanelPage() {
       timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
       try {
-        const [farmerResponse, generalResponse] = await Promise.all([
+        const [farmerResponse, generalResponse, marketRatesResponse] = await Promise.all([
           fetch(`/api/farmers/${encodeURIComponent(farmerId)}`, {
             cache: "no-store",
             credentials: "same-origin",
@@ -85,10 +87,19 @@ export default function FarmerPanelPage() {
             cache: "no-store",
             signal: controller.signal,
           }),
+          fetch(
+            `/api/farmers/${encodeURIComponent(farmerId)}/market-rates?date=${getDateInIndia()}`,
+            {
+              cache: "no-store",
+              credentials: "same-origin",
+              signal: controller.signal,
+            }
+          ),
         ]);
-        const [farmerResult, generalResult] = await Promise.all([
+        const [farmerResult, generalResult, marketRatesResult] = await Promise.all([
           farmerResponse.json(),
           generalResponse.json(),
+          marketRatesResponse.json(),
         ]);
 
         if (farmerResponse.status === 401) {
@@ -106,6 +117,9 @@ export default function FarmerPanelPage() {
 
         setFarmer(farmerResult.farmer);
         setScheduleProgress(farmerResult.scheduleProgress || []);
+        if (marketRatesResponse.ok && marketRatesResult.success) {
+          setMarketRateNotifications(marketRatesResult.rates || []);
+        }
         setLoadError("");
 
         if (generalResponse.ok && generalResult.success && generalResult.data?.shop) {
@@ -376,17 +390,20 @@ export default function FarmerPanelPage() {
               </span>
             </Link>
 
-            <article className="min-h-36 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <Link
+              href="/farmer/market-rates"
+              className="group min-h-36 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-violet-700"
+            >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-800">
                 <Store className="h-5 w-5" />
               </span>
               <span className="mt-3 block text-sm font-extrabold text-slate-900">
-                4. {lang === "mr" ? "बाजार डायरी" : "Market Diary"}
+                4. {lang === "mr" ? "बाजार भाव" : "Market Rate"}
               </span>
               <span className="mt-1 block text-xs font-medium text-slate-500">
-                {lang === "mr" ? "लवकरच" : "Coming soon"}
+                {lang === "mr" ? "आजचे आणि मागील बाजारभाव" : "Today's and historical rates"}
               </span>
-            </article>
+            </Link>
 
             <Link
               href="#notifications"
@@ -457,6 +474,31 @@ export default function FarmerPanelPage() {
                 <ChevronRight className="h-4 w-4 shrink-0 text-emerald-700" />
               </Link>
             ))
+          )}
+          {marketRateNotifications.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="pt-1 text-xs font-extrabold text-emerald-950">
+                {lang === "mr" ? "आजचे बाजारभाव अपडेट" : "Today's market rate updates"}
+              </h4>
+              {marketRateNotifications.map((rate) => (
+                <Link
+                  key={rate.id}
+                  href="/farmer/market-rates"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-white p-3 text-xs transition hover:border-emerald-600 hover:bg-emerald-50"
+                >
+                  <span>
+                    <strong className="block text-emerald-950">
+                      {rate.cropName} · {rate.marketName}
+                    </strong>
+                    <span className="mt-0.5 block text-emerald-900">
+                      {lang === "mr" ? "मोडल दर" : "Modal price"}: ₹{rate.modalPrice.toLocaleString("en-IN")} / Quintal ·{" "}
+                      {formatScheduleDate(rate.rateDate, lang)}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-emerald-700" />
+                </Link>
+              ))}
+            </div>
           )}
         </section>
 
