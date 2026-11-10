@@ -1,7 +1,28 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 import { Language, translations } from "@/lib/translations";
+
+const LANGUAGE_STORAGE_KEY = "agri_lang";
+const languageListeners = new Set<() => void>();
+
+function getLanguageSnapshot(): Language {
+  const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  return saved === "mr" ? "mr" : "en";
+}
+
+function getServerLanguageSnapshot(): Language {
+  return "en";
+}
+
+function subscribeToLanguage(listener: () => void) {
+  languageListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    languageListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
 
 interface LanguageContextType {
   lang: Language;
@@ -16,22 +37,19 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Language>("en");
+  const lang = useSyncExternalStore(
+    subscribeToLanguage,
+    getLanguageSnapshot,
+    getServerLanguageSnapshot
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const saved = localStorage.getItem("agri_lang") as Language;
-    if (saved === "en" || saved === "mr") {
-      setLangState(saved);
-    }
-  }, []);
+    document.documentElement.lang = lang === "mr" ? "mr" : "en";
+  }, [lang]);
 
   const setLang = (newLang: Language) => {
-    setLangState(newLang);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("agri_lang", newLang);
-    }
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, newLang);
+    languageListeners.forEach((listener) => listener());
   };
 
   const t = (key: keyof typeof translations["en"]) => {

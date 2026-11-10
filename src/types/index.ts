@@ -281,6 +281,7 @@ export interface FarmDiaryEntry {
 }
 
 export type MarketRateStatus = "DRAFT" | "PUBLISHED";
+export type MarketRateUnit = "KG" | "TON";
 
 export interface MarketRate {
   id: string;
@@ -289,6 +290,7 @@ export interface MarketRate {
   state: string;
   district: string;
   marketName: string;
+  rateUnit: MarketRateUnit;
   minimumPrice: number;
   maximumPrice: number;
   modalPrice: number;

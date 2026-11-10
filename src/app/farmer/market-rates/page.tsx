@@ -14,6 +14,7 @@ interface PublishedMarketRate {
   state: string;
   district: string;
   marketName: string;
+  rateUnit: "KG" | "TON";
   minimumPrice: number;
   maximumPrice: number;
   modalPrice: number;
@@ -34,6 +35,7 @@ function isRate(value: unknown): value is PublishedMarketRate {
     typeof rate.state === "string" &&
     typeof rate.district === "string" &&
     typeof rate.marketName === "string" &&
+    (rate.rateUnit === "KG" || rate.rateUnit === "TON") &&
     typeof rate.minimumPrice === "number" &&
     typeof rate.maximumPrice === "number" &&
     typeof rate.modalPrice === "number" &&
@@ -57,6 +59,7 @@ export default function FarmerMarketRatesPage() {
   const [district, setDistrict] = useState("");
   const [market, setMarket] = useState("");
   const [trendCrop, setTrendCrop] = useState("");
+  const [trendUnit, setTrendUnit] = useState<"KG" | "TON">("KG");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -91,6 +94,7 @@ export default function FarmerMarketRatesPage() {
       const published = result.rates.filter(isRate);
       setRates(published);
       setTrendCrop((current) => current || published[0]?.cropName || "");
+      setTrendUnit(published[0]?.rateUnit || "KG");
     } catch (loadError: unknown) {
       if (loadError instanceof SyntaxError) {
         setError(lang === "mr" ? "बाजारभाव माहिती वाचता आली नाही." : "Could not read market rate information.");
@@ -141,11 +145,12 @@ export default function FarmerMarketRatesPage() {
         .filter(
           (rate) =>
             rate.cropName === trendCrop &&
+            rate.rateUnit === trendUnit &&
             (!district || rate.district === district) &&
             (!market || rate.marketName === market)
         )
         .sort((a, b) => a.rateDate.localeCompare(b.rateDate) || a.updatedAt.localeCompare(b.updatedAt)),
-    [district, market, rates, trendCrop]
+    [district, market, rates, trendCrop, trendUnit]
   );
   const chartPoints = useMemo(() => {
     if (trendRates.length === 0) return "";
@@ -291,7 +296,7 @@ export default function FarmerMarketRatesPage() {
                       <p className="mt-0.5 text-xs font-semibold text-slate-500">{rate.cropVariety}</p>
                       <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-slate-700">
                         <MapPin className="h-3.5 w-3.5 text-emerald-700" />
-                        {rate.marketName} · {rate.district}
+                          {rate.marketName ? `${rate.marketName} · ` : ""}{rate.district}
                       </p>
                     </div>
                     <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-800">
@@ -307,7 +312,7 @@ export default function FarmerMarketRatesPage() {
                       <div key={label} className="px-1">
                         <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
                         <p className={`mt-1 text-sm font-black ${label === (lang === "mr" ? "मोडल" : "Modal") ? "text-emerald-800" : "text-slate-900"}`}>
-                          ₹{formatPrice(price)}
+                          ₹{formatPrice(price)} / {rate.rateUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}
                         </p>
                       </div>
                     ))}
@@ -316,11 +321,6 @@ export default function FarmerMarketRatesPage() {
                     <span>{lang === "mr" ? "दर तारीख:" : "Rate date:"} {formatScheduleDate(rate.rateDate, lang)}</span>
                     <span>{lang === "mr" ? "अपडेट:" : "Updated:"} {new Intl.DateTimeFormat(lang === "mr" ? "mr-IN" : "en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date(rate.updatedAt))}</span>
                   </div>
-                  {rate.arrivalQuantity !== null && (
-                    <p className="px-4 pb-3 text-xs text-slate-600">
-                      {lang === "mr" ? "आवक" : "Arrival"}: {formatPrice(rate.arrivalQuantity)} {lang === "mr" ? "क्विंटल" : "quintals"}
-                    </p>
-                  )}
                 </article>
               ))}
             </section>
@@ -346,10 +346,10 @@ export default function FarmerMarketRatesPage() {
                         <tr key={rate.id} className="text-slate-700">
                           <td className="whitespace-nowrap px-4 py-3">{formatScheduleDate(rate.rateDate, lang)}</td>
                           <td className="px-4 py-3 font-semibold">{rate.cropName}<span className="block text-[10px] font-normal text-slate-500">{rate.cropVariety}</span></td>
-                          <td className="px-4 py-3">{rate.marketName}<span className="block text-[10px] text-slate-500">{rate.district}</span></td>
-                          <td className="whitespace-nowrap px-4 py-3">₹{formatPrice(rate.minimumPrice)}</td>
-                          <td className="whitespace-nowrap px-4 py-3">₹{formatPrice(rate.maximumPrice)}</td>
-                          <td className="whitespace-nowrap px-4 py-3 font-extrabold text-emerald-800">₹{formatPrice(rate.modalPrice)}</td>
+                          <td className="px-4 py-3">{rate.marketName ? <>{rate.marketName}<span className="block text-[10px] text-slate-500">{rate.district}</span></> : rate.district}</td>
+                          <td className="whitespace-nowrap px-4 py-3">₹{formatPrice(rate.minimumPrice)} / {rate.rateUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}</td>
+                          <td className="whitespace-nowrap px-4 py-3">₹{formatPrice(rate.maximumPrice)} / {rate.rateUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}</td>
+                          <td className="whitespace-nowrap px-4 py-3 font-extrabold text-emerald-800">₹{formatPrice(rate.modalPrice)} / {rate.rateUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}</td>
                           <td className="whitespace-nowrap px-4 py-3">{new Intl.DateTimeFormat(lang === "mr" ? "mr-IN" : "en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date(rate.updatedAt))}</td>
                         </tr>
                       ))}
@@ -372,16 +372,27 @@ export default function FarmerMarketRatesPage() {
                 {lang === "mr" ? "प्रकाशित ऐतिहासिक दरांवर आधारित" : "Based on published historical rates"}
               </p>
             </div>
-            <select
-              value={trendCrop}
-              onChange={(event) => setTrendCrop(event.target.value)}
-              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
-              aria-label={lang === "mr" ? "कलासाठी पीक निवडा" : "Select crop for trend"}
-            >
-              {[...new Set(rates.map((rate) => rate.cropName))].map((crop) => (
-                <option key={crop} value={crop}>{crop}</option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select
+                value={trendCrop}
+                onChange={(event) => setTrendCrop(event.target.value)}
+                className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                aria-label={lang === "mr" ? "कलासाठी पीक निवडा" : "Select crop for trend"}
+              >
+                {[...new Set(rates.map((rate) => rate.cropName))].map((crop) => (
+                  <option key={crop} value={crop}>{crop}</option>
+                ))}
+              </select>
+              <select
+                value={trendUnit}
+                onChange={(event) => setTrendUnit(event.target.value as "KG" | "TON")}
+                className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+                aria-label={lang === "mr" ? "कलासाठी दराचे एकक निवडा" : "Select price unit for trend"}
+              >
+                <option value="KG">{lang === "mr" ? "किलो (kg)" : "Kilogram (kg)"}</option>
+                <option value="TON">{lang === "mr" ? "टन" : "Tonne (ton)"}</option>
+              </select>
+            </div>
           </div>
           {trendRates.length < 2 ? (
             <p className="mt-4 rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">
@@ -390,8 +401,8 @@ export default function FarmerMarketRatesPage() {
           ) : (
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>₹{formatPrice(Math.max(...trendRates.map((rate) => rate.modalPrice)))}</span>
-                <span>₹{formatPrice(Math.min(...trendRates.map((rate) => rate.modalPrice)))}</span>
+                <span>₹{formatPrice(Math.max(...trendRates.map((rate) => rate.modalPrice)))} / {trendUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}</span>
+                <span>₹{formatPrice(Math.min(...trendRates.map((rate) => rate.modalPrice)))} / {trendUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"}</span>
               </div>
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={`${trendCrop} modal price trend`}>
                 <line x1="5" y1="18" x2="95" y2="18" stroke="#e2e8f0" strokeWidth="0.6" />
@@ -400,7 +411,7 @@ export default function FarmerMarketRatesPage() {
                 <polyline points={chartPoints} fill="none" stroke="#047857" strokeWidth="2" vectorEffect="non-scaling-stroke" />
                 {trendRates.map((rate, index) => {
                   const [x, y] = chartPoints.split(" ")[index].split(",");
-                  return <circle key={`${rate.id}-${index}`} cx={x} cy={y} r="1.7" fill="#047857"><title>{`${formatScheduleDate(rate.rateDate, lang)}: ₹${formatPrice(rate.modalPrice)}`}</title></circle>;
+                  return <circle key={`${rate.id}-${index}`} cx={x} cy={y} r="1.7" fill="#047857"><title>{`${formatScheduleDate(rate.rateDate, lang)}: ₹${formatPrice(rate.modalPrice)} / ${trendUnit === "TON" ? "ton" : "kg"}`}</title></circle>;
                 })}
               </svg>
               <div className="mt-1 flex justify-between gap-2 text-[10px] text-slate-500">

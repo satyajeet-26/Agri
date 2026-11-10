@@ -35,6 +35,7 @@ import {
 } from "@/lib/schedule-date";
 import { WhatsAppModal } from "@/components/WhatsAppModal";
 import { PlotScheduleTimeline } from "@/components/PlotScheduleTimeline";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   generateSprayWhatsAppMessage,
   generateFertilizerWhatsAppMessage,
@@ -61,7 +62,12 @@ const formatRupees = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 
+const localize = (language: "en" | "mr", en: string, mr: string) =>
+  language === "mr" ? mr : en;
+
 export default function FarmerDetailsPage() {
+  const { lang } = useLanguage();
+  const tr = (en: string, mr: string) => localize(lang, en, mr);
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
@@ -183,7 +189,7 @@ export default function FarmerDetailsPage() {
         )
       ) {
         setSessionExpired(true);
-        setLoadError("Your session has expired. Please log in again.");
+        setLoadError(tr("Your session has expired. Please log in again.", "तुमचे सत्र कालबाह्य झाले आहे. कृपया पुन्हा लॉग इन करा."));
         router.replace("/login");
         return;
       }
@@ -196,12 +202,12 @@ export default function FarmerDetailsPage() {
       const jsonDiary = await resDiary.json();
 
       if (!resFarmer.ok || !jsonFarmer.success || !jsonFarmer.farmer) {
-        throw new Error(jsonFarmer.message || jsonFarmer.error || "Unable to load farmer details.");
+        throw new Error(jsonFarmer.message || jsonFarmer.error || tr("Unable to load farmer details.", "शेतकऱ्याची माहिती लोड करता आली नाही."));
       }
       setFarmer(jsonFarmer.farmer);
       setScheduleProgress(jsonFarmer.scheduleProgress || []);
       if (!resDiary.ok || !jsonDiary.success || !Array.isArray(jsonDiary.entries)) {
-        throw new Error(jsonDiary.message || "Unable to load farmer diary records.");
+        throw new Error(jsonDiary.message || tr("Unable to load farmer diary records.", "शेतकऱ्याच्या डायरीतील नोंदी लोड करता आल्या नाहीत."));
       }
       setFarmDiaryEntries(jsonDiary.entries);
       if (jsonFarmer.farmer.plots.length > 0 && !selectedPlotId) {
@@ -248,7 +254,7 @@ export default function FarmerDetailsPage() {
       setLoadError("");
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Unable to load farmer details.";
+        error instanceof Error ? error.message : tr("Unable to load farmer details.", "शेतकऱ्याची माहिती लोड करता आली नाही.");
       setLoadError(errorMessage);
       console.error("Farmer details load failed:", error);
     } finally {
@@ -278,14 +284,14 @@ export default function FarmerDetailsPage() {
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok || !result.success || !result.timeline) {
-          throw new Error(result.message || "Unable to load plot schedule timeline.");
+          throw new Error(result.message || localize(lang, "Unable to load plot schedule timeline.", "शेतजमिनीचे वेळापत्रक लोड करता आले नाही."));
         }
         if (!cancelled) setPlotTimeline(result.timeline);
       })
       .catch((loadError: unknown) => {
         if (cancelled) return;
         const errorText =
-          loadError instanceof Error ? loadError.message : "Unable to load plot schedule timeline.";
+          loadError instanceof Error ? loadError.message : localize(lang, "Unable to load plot schedule timeline.", "शेतजमिनीचे वेळापत्रक लोड करता आले नाही.");
         setPlotTimelineError(errorText);
       })
       .finally(() => {
@@ -295,7 +301,7 @@ export default function FarmerDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [farmer, id, selectedPlotId, plotTimelineRefresh]);
+  }, [farmer, id, lang, selectedPlotId, plotTimelineRefresh]);
 
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -314,13 +320,13 @@ export default function FarmerDetailsPage() {
     return (
       <div role="alert" className="mx-auto mt-8 max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
         <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-600" />
-        <p className="text-sm text-slate-800">{loadError || "Unable to load this farmer."}</p>
+        <p className="text-sm text-slate-800">{loadError || tr("Unable to load this farmer.", "या शेतकऱ्याची माहिती लोड करता आली नाही.")}</p>
         {sessionExpired ? (
           <Link
             href="/login"
             className="mt-4 inline-block rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
           >
-            Log in
+            {tr("Log in", "लॉग इन करा")}
           </Link>
         ) : (
           <button
@@ -331,7 +337,7 @@ export default function FarmerDetailsPage() {
             }}
             className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
           >
-            Retry
+            {tr("Retry", "पुन्हा प्रयत्न करा")}
           </button>
         )}
       </div>
@@ -370,9 +376,14 @@ export default function FarmerDetailsPage() {
     const firstNewDay = alreadyReleasedDays + 1;
     if (
       !window.confirm(
-        `Current released schedule: ${
-          alreadyReleasedDays ? `Day 1–${alreadyReleasedDays}` : "None"
-        }\nNew total schedule: Day 1–${requestedDays}\nNew days to be released: Day ${firstNewDay}–${requestedDays}\n\nContinue?`
+        tr(
+          `Current released schedule: ${
+            alreadyReleasedDays ? `Day 1–${alreadyReleasedDays}` : "None"
+          }\nNew total schedule: Day 1–${requestedDays}\nNew days to be released: Day ${firstNewDay}–${requestedDays}\n\nContinue?`,
+          `सध्या सोडलेले वेळापत्रक: ${
+            alreadyReleasedDays ? `दिवस १–${alreadyReleasedDays}` : "नाही"
+          }\nनवीन एकूण वेळापत्रक: दिवस १–${requestedDays}\nनवीन सोडले जाणारे दिवस: दिवस ${firstNewDay}–${requestedDays}\n\nपुढे सुरू ठेवायचे?`
+        )
       )
     ) {
       return;
@@ -391,7 +402,7 @@ export default function FarmerDetailsPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        showNotification("error", result.message || "Unable to release schedule days.");
+        showNotification("error", result.message || tr("Unable to release schedule days.", "वेळापत्रकाचे दिवस सोडता आले नाहीत."));
         return;
       }
 
@@ -408,9 +419,9 @@ export default function FarmerDetailsPage() {
       ]);
       setSetTotalDays("");
       setPlotTimelineRefresh((current) => current + 1);
-      showNotification("success", result.message || "Schedule days released.");
+      showNotification("success", result.message || tr("Schedule days released.", "वेळापत्रकाचे दिवस सोडले."));
     } catch {
-      showNotification("error", "Network error while releasing schedule days.");
+      showNotification("error", tr("Network error while releasing schedule days.", "वेळापत्रकाचे दिवस सोडताना नेटवर्क त्रुटी आली."));
     } finally {
       setReleaseSaving(false);
     }
@@ -437,7 +448,7 @@ export default function FarmerDetailsPage() {
   // 1. WhatsApp Spray trigger
   const handleOpenSprayWhatsApp = (item: PersonalizedSprayItem) => {
     if (!canSendWhatsAppForDay(item.day)) {
-      showNotification("error", "WhatsApp is available only for days in the latest released extension.");
+      showNotification("error", tr("WhatsApp is available only for days in the latest released extension.", "WhatsApp फक्त अलीकडे सोडलेल्या दिवसांसाठी उपलब्ध आहे."));
       return;
     }
     if (!shop || !selectedPlot) return;
@@ -469,7 +480,7 @@ export default function FarmerDetailsPage() {
   // 2. WhatsApp Fertilizer trigger
   const handleOpenFertilizerWhatsApp = (item: PersonalizedFertilizerItem) => {
     if (!canSendWhatsAppForDay(item.day)) {
-      showNotification("error", "WhatsApp is available only for days in the latest released extension.");
+      showNotification("error", tr("WhatsApp is available only for days in the latest released extension.", "WhatsApp फक्त अलीकडे सोडलेल्या दिवसांसाठी उपलब्ध आहे."));
       return;
     }
     if (!shop || !selectedPlot) return;
@@ -507,7 +518,7 @@ export default function FarmerDetailsPage() {
       !selectedScheduleProgress ||
       day.day > selectedScheduleProgress.totalDaysReleased
     ) {
-      showNotification("error", "Only today's released schedule can be sent.");
+      showNotification("error", tr("Only today's released schedule can be sent.", "फक्त आजचे सोडलेले वेळापत्रक पाठवता येते."));
       return;
     }
     if (!shop || !selectedPlot) return;
@@ -600,18 +611,18 @@ export default function FarmerDetailsPage() {
       );
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message || "Unable to update schedule completion.");
+        throw new Error(result.message || tr("Unable to update schedule completion.", "वेळापत्रक पूर्ण झाल्याची स्थिती अद्ययावत करता आली नाही."));
       }
 
       const updatedPlots = farmer.plots.map((plot) =>
         plot.id === selectedPlot.id ? result.plot : plot
       );
       setFarmer({ ...farmer, plots: updatedPlots });
-      showNotification("success", "Schedule completion updated for this plot.");
+      showNotification("success", tr("Schedule completion updated for this plot.", "या शेतजमिनीच्या वेळापत्रकाची पूर्णता अद्ययावत केली."));
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Unable to update schedule completion."
+        error instanceof Error ? error.message : tr("Unable to update schedule completion.", "वेळापत्रक पूर्ण झाल्याची स्थिती अद्ययावत करता आली नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -649,7 +660,7 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to save spray schedule.");
+        throw new Error(json.message || json.error || tr("Failed to save spray schedule.", "फवारणीचे वेळापत्रक जतन करता आले नाही."));
       }
       if (json.success) {
         // Update local farmer state
@@ -661,13 +672,16 @@ export default function FarmerDetailsPage() {
         setEditingSprayId(null);
         showNotification(
           "success",
-          `Spray customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`
+          tr(
+            `Spray customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`,
+            `${farmer.name} यांच्या शेतजमिनीसाठी फवारणीचे वेळापत्रक बदलले! (मास्टर वेळापत्रक बदललेले नाही)`
+          )
         );
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to update personalized spray schedule."
+        error instanceof Error ? error.message : tr("Failed to update personalized spray schedule.", "वैयक्तिक फवारणीचे वेळापत्रक अद्ययावत करता आले नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -676,7 +690,7 @@ export default function FarmerDetailsPage() {
 
   const handleDeleteSprayItem = async (itemId: string) => {
     if (savingAction) return;
-    if (!confirm("Are you sure you want to remove this spray day from this farmer's plot?"))
+    if (!confirm(tr("Are you sure you want to remove this spray day from this farmer's plot?", "या शेतकऱ्याच्या शेतजमिनीवरील हा फवारणीचा दिवस हटवायचा आहे का?")))
       return;
     setSavingAction("spray");
     try {
@@ -687,19 +701,19 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to delete spray schedule item.");
+        throw new Error(json.message || json.error || tr("Failed to delete spray schedule item.", "फवारणीच्या वेळापत्रकातील नोंद हटवता आली नाही."));
       }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
         );
         setFarmer({ ...farmer, plots: updatedPlots });
-        showNotification("success", "Spray day removed from this plot schedule");
+        showNotification("success", tr("Spray day removed from this plot schedule", "या शेतजमिनीच्या वेळापत्रकातून फवारणीचा दिवस हटवला"));
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to delete spray schedule item."
+        error instanceof Error ? error.message : tr("Failed to delete spray schedule item.", "फवारणीच्या वेळापत्रकातील नोंद हटवता आली नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -738,7 +752,7 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to save fertilizer schedule.");
+        throw new Error(json.message || json.error || tr("Failed to save fertilizer schedule.", "खताचे वेळापत्रक जतन करता आले नाही."));
       }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
@@ -749,13 +763,16 @@ export default function FarmerDetailsPage() {
         setEditingFertId(null);
         showNotification(
           "success",
-          `Fertilizer customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`
+          tr(
+            `Fertilizer customized for ${farmer.name}'s plot only! (Master Schedule unchanged)`,
+            `${farmer.name} यांच्या शेतजमिनीसाठी खताचे वेळापत्रक बदलले! (मास्टर वेळापत्रक बदललेले नाही)`
+          )
         );
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to update fertilizer schedule."
+        error instanceof Error ? error.message : tr("Failed to update fertilizer schedule.", "खताचे वेळापत्रक अद्ययावत करता आले नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -764,7 +781,7 @@ export default function FarmerDetailsPage() {
 
   const handleDeleteFertItem = async (itemId: string) => {
     if (savingAction) return;
-    if (!confirm("Are you sure you want to remove this fertilizer stage from this plot?")) return;
+    if (!confirm(tr("Are you sure you want to remove this fertilizer stage from this plot?", "या शेतजमिनीवरील खताचा हा टप्पा हटवायचा आहे का?"))) return;
     setSavingAction("fertilizer");
     try {
       const res = await fetchWithTimeout(`/api/farmers/${farmer.id}/plots/${selectedPlot.id}/schedule`, {
@@ -774,19 +791,19 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to delete fertilizer schedule item.");
+        throw new Error(json.message || json.error || tr("Failed to delete fertilizer schedule item.", "खताच्या वेळापत्रकातील नोंद हटवता आली नाही."));
       }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
         );
         setFarmer({ ...farmer, plots: updatedPlots });
-        showNotification("success", "Fertilizer stage removed from this plot schedule");
+        showNotification("success", tr("Fertilizer stage removed from this plot schedule", "या शेतजमिनीच्या वेळापत्रकातून खताचा टप्पा हटवला"));
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to delete fertilizer schedule item."
+        error instanceof Error ? error.message : tr("Failed to delete fertilizer schedule item.", "खताच्या वेळापत्रकातील नोंद हटवता आली नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -798,7 +815,10 @@ export default function FarmerDetailsPage() {
     if (!selectedPlot || savingAction) return;
     if (
       !confirm(
-        `Are you sure you want to reset ${selectedPlot.plotName}'s schedule back to the standard ${selectedPlot.cropName} master template? Any custom modifications will be replaced.`
+        tr(
+          `Are you sure you want to reset ${selectedPlot.plotName}'s schedule back to the standard ${selectedPlot.cropName} master template? Any custom modifications will be replaced.`,
+          `${selectedPlot.plotName} चे वेळापत्रक ${selectedPlot.cropName} च्या मानक मास्टर नमुन्यानुसार रीसेट करायचे आहे का? केलेले कोणतेही विशेष बदल काढून टाकले जातील.`
+        )
       )
     )
       return;
@@ -812,19 +832,19 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to reset schedule.");
+        throw new Error(json.message || json.error || tr("Failed to reset schedule.", "वेळापत्रक रीसेट करता आले नाही."));
       }
       if (json.success) {
         const updatedPlots = farmer.plots.map((p) =>
           p.id === selectedPlot.id ? json.plot : p
         );
         setFarmer({ ...farmer, plots: updatedPlots });
-        showNotification("success", "Schedule reset to Master template!");
+        showNotification("success", tr("Schedule reset to Master template!", "वेळापत्रक मास्टर नमुन्यानुसार रीसेट केले!"));
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to reset schedule."
+        error instanceof Error ? error.message : tr("Failed to reset schedule.", "वेळापत्रक रीसेट करता आले नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -856,7 +876,7 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to add plot.");
+        throw new Error(json.message || json.error || tr("Failed to add plot.", "शेतजमीन जोडता आली नाही."));
       }
       if (json.success) {
         setFarmer(json.farmer);
@@ -865,12 +885,12 @@ export default function FarmerDetailsPage() {
           setSelectedPlotId(json.farmer.plots[json.farmer.plots.length - 1].id);
           setSetTotalDays("");
         }
-        showNotification("success", "New plot added and master schedule cloned!");
+        showNotification("success", tr("New plot added and master schedule cloned!", "नवीन शेतजमीन जोडली आणि मास्टर वेळापत्रकाची प्रत तयार केली!"));
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to add plot."
+        error instanceof Error ? error.message : tr("Failed to add plot.", "शेतजमीन जोडता आली नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -881,7 +901,10 @@ export default function FarmerDetailsPage() {
     if (!selectedPlot || savingAction) return;
     if (
       !confirm(
-        `Delete ${selectedPlot.plotName} (${selectedPlot.cropName}) and its schedules? This cannot be undone.`
+        tr(
+          `Delete ${selectedPlot.plotName} (${selectedPlot.cropName}) and its schedules? This cannot be undone.`,
+          `${selectedPlot.plotName} (${selectedPlot.cropName}) आणि त्याचे वेळापत्रक हटवायचे आहे का? ही कृती पूर्ववत करता येणार नाही.`
+        )
       )
     ) {
       return;
@@ -894,7 +917,7 @@ export default function FarmerDetailsPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || "Failed to delete plot");
+        throw new Error(json.message || json.error || tr("Failed to delete plot", "शेतजमीन हटवता आली नाही"));
       }
 
       const updatedFarmer = json.farmer;
@@ -905,10 +928,10 @@ export default function FarmerDetailsPage() {
       setShowFertForm(false);
       setEditingSprayId(null);
       setEditingFertId(null);
-      showNotification("success", "Plot deleted successfully");
+      showNotification("success", tr("Plot deleted successfully", "शेतजमीन यशस्वीरित्या हटवली"));
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete plot";
+        error instanceof Error ? error.message : tr("Failed to delete plot", "शेतजमीन हटवता आली नाही");
       showNotification("error", errorMessage);
     } finally {
       setSavingAction(null);
@@ -926,7 +949,7 @@ export default function FarmerDetailsPage() {
           className="inline-flex items-center space-x-2 text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs w-fit"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to All Farmers (शेतकरी यादी)</span>
+          <span>{tr("Back to All Farmers (शेतकरी यादी)", "सर्व शेतकऱ्यांकडे परत")}</span>
         </Link>
 
         {message && (
@@ -947,7 +970,7 @@ export default function FarmerDetailsPage() {
         )}
         {loadError && (
           <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
-            <span>Could not load all farmer details: {loadError}</span>
+            <span>{tr("Could not load all farmer details:", "शेतकऱ्याची सर्व माहिती लोड करता आली नाही:")} {loadError}</span>
             <button
               type="button"
               onClick={() => {
@@ -956,7 +979,7 @@ export default function FarmerDetailsPage() {
               }}
               className="rounded-lg bg-amber-200 px-3 py-1.5 font-bold"
             >
-              Retry
+              {tr("Retry", "पुन्हा प्रयत्न करा")}
             </button>
           </div>
         )}
@@ -975,7 +998,7 @@ export default function FarmerDetailsPage() {
                   {farmer.name}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                  {farmer.isActive ? "Active" : "Inactive"}
+                  {farmer.isActive ? tr("Active", "सक्रिय") : tr("Inactive", "निष्क्रिय")}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5 flex items-center space-x-3">
@@ -986,7 +1009,7 @@ export default function FarmerDetailsPage() {
                   </span>
                 </span>
                 <span>•</span>
-                <span>Reg: {farmer.registrationDate}</span>
+                <span>{tr("Reg:", "नोंदणी:")} {farmer.registrationDate}</span>
               </p>
             </div>
           </div>
@@ -995,7 +1018,7 @@ export default function FarmerDetailsPage() {
             {/* Opening Balance Badge */}
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                Opening Balance
+                {tr("Opening Balance", "प्रारंभिक शिल्लक")}
               </span>
               <span
                 className={`font-bold text-sm ${
@@ -1011,10 +1034,10 @@ export default function FarmerDetailsPage() {
             {/* Total Area */}
             <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
               <span className="text-[10px] uppercase font-bold text-emerald-700 block">
-                Total Consultancy Area
+                {tr("Total Consultancy Area", "एकूण सल्लागार क्षेत्र")}
               </span>
               <span className="font-extrabold text-sm text-emerald-900">
-                {formatArea(totalFarmerGuntha).formatted} ({farmer.plots.length} Plots)
+                {formatArea(totalFarmerGuntha).formatted} ({farmer.plots.length} {tr("Plots", "शेतजमिनी")})
               </span>
             </div>
           </div>
@@ -1025,7 +1048,7 @@ export default function FarmerDetailsPage() {
           <div className="flex items-center space-x-2">
             <Phone className="w-4 h-4 text-slate-400" />
             <div>
-              <p className="text-[10px] text-slate-400 font-semibold">Mobile</p>
+              <p className="text-[10px] text-slate-400 font-semibold">{tr("Mobile", "मोबाईल")}</p>
               <a href={`tel:${farmer.mobile}`} className="font-mono font-bold text-slate-700 hover:text-emerald-700">
                 {farmer.mobile}
               </a>
@@ -1045,7 +1068,7 @@ export default function FarmerDetailsPage() {
           <div className="flex items-center space-x-2">
             <Lock className="w-4 h-4 text-slate-400" />
             <div>
-              <p className="text-[10px] text-slate-400 font-semibold">Website Username</p>
+              <p className="text-[10px] text-slate-400 font-semibold">{tr("Website Username", "वेबसाइट वापरकर्ता नाव")}</p>
               <span className="font-mono font-bold text-slate-800">{farmer.username}</span>
             </div>
           </div>
@@ -1053,8 +1076,8 @@ export default function FarmerDetailsPage() {
           <div className="flex items-center space-x-2">
             <Lock className="w-4 h-4 text-slate-400" />
             <div>
-              <p className="text-[10px] text-slate-400 font-semibold">Farmer Password</p>
-              <span className="font-mono font-bold text-amber-800">Not displayed</span>
+              <p className="text-[10px] text-slate-400 font-semibold">{tr("Farmer Password", "शेतकरी पासवर्ड")}</p>
+              <span className="font-mono font-bold text-amber-800">{tr("Not displayed", "दाखवलेला नाही")}</span>
             </div>
           </div>
         </div>
@@ -1063,16 +1086,16 @@ export default function FarmerDetailsPage() {
       <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900">Farm Diary Records</h2>
+            <h2 className="text-base font-extrabold text-slate-900">{tr("Farm Diary Records", "शेत डायरी नोंदी")}</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Read-only activity and expense history recorded by this farmer.
+              {tr("Read-only activity and expense history recorded by this farmer.", "या शेतकऱ्याने नोंदवलेला केवळ-वाचन क्रियाकलाप आणि खर्चाचा इतिहास.")}
             </p>
           </div>
           <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs">
-            <span className="text-emerald-800">Entries: </span>
+            <span className="text-emerald-800">{tr("Entries:", "नोंदी:")} </span>
             <strong className="text-emerald-950">{farmDiaryEntries.length}</strong>
             <span className="mx-2 text-emerald-300">·</span>
-            <span className="text-emerald-800">Total: </span>
+            <span className="text-emerald-800">{tr("Total:", "एकूण:")} </span>
             <strong className="text-emerald-950">
               {formatRupees.format(
                 farmDiaryEntries.reduce((sum, entry) => sum + entry.totalExpense, 0)
@@ -1082,19 +1105,19 @@ export default function FarmerDetailsPage() {
         </div>
         {farmDiaryEntries.length === 0 ? (
           <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-            This farmer has not recorded any farm diary activities yet.
+            {tr("This farmer has not recorded any farm diary activities yet.", "या शेतकऱ्याने अद्याप शेत डायरीतील कोणत्याही क्रियाकलापांची नोंद केलेली नाही.")}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="border-b border-slate-200 text-slate-500">
                 <tr>
-                  <th className="px-2 py-2">Date</th>
-                  <th className="px-2 py-2">Plot / Crop</th>
-                  <th className="px-2 py-2">Season</th>
-                  <th className="px-2 py-2">Activity</th>
-                  <th className="px-2 py-2">Description</th>
-                  <th className="px-2 py-2 text-right">Expense</th>
+                  <th className="px-2 py-2">{tr("Date", "तारीख")}</th>
+                  <th className="px-2 py-2">{tr("Plot / Crop", "शेतजमीन / पीक")}</th>
+                  <th className="px-2 py-2">{tr("Season", "हंगाम")}</th>
+                  <th className="px-2 py-2">{tr("Activity", "क्रियाकलाप")}</th>
+                  <th className="px-2 py-2">{tr("Description", "वर्णन")}</th>
+                  <th className="px-2 py-2 text-right">{tr("Expense", "खर्च")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1102,7 +1125,7 @@ export default function FarmerDetailsPage() {
                   <tr key={entry.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-2 py-2">{entry.date}</td>
                     <td className="px-2 py-2">
-                      {farmer.plots.find((plot) => plot.id === entry.plotId)?.plotName || "Plot removed"}
+                      {farmer.plots.find((plot) => plot.id === entry.plotId)?.plotName || tr("Plot removed", "शेतजमीन हटवली")}
                       {" · "}{entry.cropName}
                     </td>
                     <td className="px-2 py-2">{entry.season}</td>
@@ -1123,7 +1146,7 @@ export default function FarmerDetailsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-2 overflow-x-auto pb-1">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">
-            Plots:
+            {tr("Plots:", "शेतजमिनी:")}
           </span>
           {farmer.plots.map((plot) => {
             const active = plot.id === selectedPlot?.id;
@@ -1162,7 +1185,7 @@ export default function FarmerDetailsPage() {
           className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-sm shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>+ Add Another Plot</span>
+          <span>{tr("+ Add Another Plot", "+ आणखी शेतजमीन जोडा")}</span>
         </button>
       </div>
 
@@ -1172,7 +1195,7 @@ export default function FarmerDetailsPage() {
           <div className="space-y-1">
             <div className="flex items-center space-x-2">
               <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-emerald-800 text-white">
-                Active Plot
+                {tr("Active Plot", "सक्रिय शेतजमीन")}
               </span>
               <h2 className="text-base font-extrabold text-slate-800">
                 {selectedPlot.plotName} — {selectedPlot.cropName}
@@ -1180,9 +1203,9 @@ export default function FarmerDetailsPage() {
             </div>
             <p className="text-xs text-slate-600">
               <span className="font-semibold text-emerald-800">
-                Area: {formatArea(selectedPlot.totalGuntha).formatted}
+                {tr("Area:", "क्षेत्र:")} {formatArea(selectedPlot.totalGuntha).formatted}
               </span>{" "}
-              ({selectedPlot.areaAcre} Acre {selectedPlot.areaGuntha} Guntha) • Sowing Date:{" "}
+              ({selectedPlot.areaAcre} {tr("Acre", "एकर")} {selectedPlot.areaGuntha} {tr("Guntha", "गुंठा")}) • {tr("Sowing Date:", "पेरणीची तारीख:")}{" "}
               <span className="font-mono font-bold text-slate-800">
                 {selectedPlot.sowingDate}
               </span>
@@ -1190,8 +1213,8 @@ export default function FarmerDetailsPage() {
             <div className="flex items-center space-x-1.5 text-[11px] text-amber-800 font-medium pt-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-600" />
               <span>
-                Personalized Schedule Active. Any edit made below applies{" "}
-                <strong>only to {farmer.name}'s field</strong>.
+                {tr("Personalized Schedule Active. Any edit made below applies", "वैयक्तिक वेळापत्रक सक्रिय. खाली केलेला कोणताही बदल")}
+                {" "}<strong>{tr(`only to ${farmer.name}'s field`, `फक्त ${farmer.name} यांच्या शेतासाठी लागू होतो`)}</strong>.
               </span>
             </div>
             <div
@@ -1201,18 +1224,22 @@ export default function FarmerDetailsPage() {
                   : "border-emerald-200 bg-white/80 text-slate-700"
               }`}
             >
-              <strong>Released:</strong>{" "}
+              <strong>{tr("Released:", "सोडलेले:")}</strong>{" "}
               {selectedScheduleProgress
-                ? `Day 1–${selectedScheduleProgress.totalDaysReleased}`
-                : "No days released"}
-              {" · "}<strong>Last delivered:</strong>{" "}
+                ? tr(`Day 1–${selectedScheduleProgress.totalDaysReleased}`, `दिवस १–${selectedScheduleProgress.totalDaysReleased}`)
+                : tr("No days released", "दिवस सोडलेले नाहीत")}
+              {" · "}<strong>{tr("Last delivered:", "शेवटचे पाठवलेले:")}</strong>{" "}
               {selectedScheduleProgress?.lastDeliveredDay || 0}
-              {" · "}<strong>Current day:</strong>{" "}
+              {" · "}<strong>{tr("Current day:", "सध्याचा दिवस:")}</strong>{" "}
               {selectedScheduleProgress?.currentDay || 0}
-              {" · "}<strong>Status:</strong>{" "}
-              {selectedScheduleProgress?.status || "Not started"}
+              {" · "}<strong>{tr("Status:", "स्थिती:")}</strong>{" "}
+              {selectedScheduleProgress?.status === "COMPLETED"
+                ? tr("Completed", "पूर्ण")
+                : selectedScheduleProgress?.status === "ACTIVE"
+                  ? tr("Active", "सक्रिय")
+                  : tr("Not started", "सुरू झालेले नाही")}
               {selectedScheduleProgress?.status === "COMPLETED" && (
-                <span> — ready for the next schedule extension.</span>
+                <span> — {tr("ready for the next schedule extension.", "पुढील वेळापत्रक वाढीसाठी तयार.")}</span>
               )}
             </div>
           </div>
@@ -1222,19 +1249,21 @@ export default function FarmerDetailsPage() {
               onClick={handleResetToMaster}
               disabled={savingAction !== null}
               className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs"
-              title="Re-copy from Master Template"
+              title={tr("Re-copy from Master Template", "मास्टर नमुन्यातून पुन्हा प्रत करा")}
+              aria-label={tr("Re-copy from Master Template", "मास्टर नमुन्यातून पुन्हा प्रत करा")}
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>{savingAction === "reset" ? "Resetting..." : "Reset from Master Template"}</span>
+              <span>{savingAction === "reset" ? tr("Resetting...", "रीसेट करत आहे...") : tr("Reset from Master Template", "मास्टर नमुन्यातून रीसेट करा")}</span>
             </button>
             <button
               onClick={handleDeletePlot}
               disabled={savingAction !== null}
               className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-700 text-xs font-semibold shadow-xs"
-              title="Delete this plot and its schedules"
+              title={tr("Delete this plot and its schedules", "ही शेतजमीन आणि तिचे वेळापत्रक हटवा")}
+              aria-label={tr("Delete this plot and its schedules", "ही शेतजमीन आणि तिचे वेळापत्रक हटवा")}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>{savingAction === "delete-plot" ? "Deleting..." : "Delete Plot"}</span>
+              <span>{savingAction === "delete-plot" ? tr("Deleting...", "हटवत आहे...") : tr("Delete Plot", "शेतजमीन हटवा")}</span>
             </button>
           </div>
         </div>
@@ -1244,22 +1273,22 @@ export default function FarmerDetailsPage() {
         <section className="space-y-4 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
-              Set Schedule Days for This Plot
+              {tr("Set Schedule Days for This Plot", "या शेतजमिनीसाठी वेळापत्रकाचे दिवस निश्चित करा")}
             </h3>
             <p className="mt-1 text-xs text-slate-600">
               {selectedPlot.plotName} · {selectedPlot.cropName}
-              {" — "}Extend this plot’s released schedule without changing the master schedule.
+              {" — "}{tr("Extend this plot’s released schedule without changing the master schedule.", "मास्टर वेळापत्रक न बदलता या शेतजमिनीचे सोडलेले वेळापत्रक वाढवा.")}
             </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-700">
               <p>
-                <strong>Days currently set:</strong> {alreadyReleasedDays}
+                <strong>{tr("Days currently set:", "सध्या निश्चित केलेले दिवस:")}</strong> {alreadyReleasedDays}
               </p>
               <p className="mt-1">
-                <strong>Master schedule limit:</strong>{" "}
-                {maxReleaseDay > 0 ? `${maxReleaseDay} days` : "No master days"}
+                <strong>{tr("Master schedule limit:", "मास्टर वेळापत्रकाची मर्यादा:")}</strong>{" "}
+                {maxReleaseDay > 0 ? `${maxReleaseDay} ${tr("days", "दिवस")}` : tr("No master days", "मास्टरमध्ये दिवस नाहीत")}
               </p>
             </div>
 
@@ -1268,7 +1297,7 @@ export default function FarmerDetailsPage() {
               className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end"
             >
               <label className="flex-1 text-xs font-semibold text-slate-700">
-                Extend total days to
+                {tr("Extend total days to", "एकूण दिवस वाढवून")}
                 <input
                   type="number"
                   min={alreadyReleasedDays + 1}
@@ -1278,8 +1307,8 @@ export default function FarmerDetailsPage() {
                   onChange={(event) => setSetTotalDays(event.target.value)}
                   placeholder={
                     maxReleaseDay > alreadyReleasedDays
-                      ? `Enter ${alreadyReleasedDays + 1}–${maxReleaseDay}`
-                      : "No more master days available"
+                      ? tr(`Enter ${alreadyReleasedDays + 1}–${maxReleaseDay}`, `${alreadyReleasedDays + 1}–${maxReleaseDay} प्रविष्ट करा`)
+                      : tr("No more master days available", "मास्टरमध्ये आणखी दिवस उपलब्ध नाहीत")
                   }
                   disabled={releaseSaving || maxReleaseDay <= alreadyReleasedDays}
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
@@ -1290,13 +1319,13 @@ export default function FarmerDetailsPage() {
                 disabled={releaseSaving || !canExtendSchedule}
                 className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {releaseSaving ? "Setting days..." : "Set Days"}
+                {releaseSaving ? tr("Setting days...", "दिवस निश्चित करत आहे...") : tr("Set Days", "दिवस निश्चित करा")}
               </button>
             </form>
           </div>
           {alreadyReleasedDays >= maxReleaseDay && maxReleaseDay > 0 && (
             <p className="text-xs text-emerald-800">
-              This plot has all {maxReleaseDay} days available in its master schedule.
+              {tr(`This plot has all ${maxReleaseDay} days available in its master schedule.`, `या शेतजमिनीसाठी मास्टर वेळापत्रकातील सर्व ${maxReleaseDay} दिवस उपलब्ध आहेत.`)}
             </p>
           )}
         </section>
@@ -1306,18 +1335,18 @@ export default function FarmerDetailsPage() {
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-2 border-b border-slate-100 pb-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="font-bold text-slate-900">Day-by-Day Plot Schedule</h3>
+              <h3 className="font-bold text-slate-900">{tr("Day-by-Day Plot Schedule", "दिवसानुसार शेतजमिनीचे वेळापत्रक")}</h3>
               <p className="mt-1 text-xs text-slate-500">
                 {selectedPlot.plotName} · {selectedPlot.cropName}
                 {plotTimeline?.progress && (
                   <>
-                    {" · "}Day {Math.min(
+                    {" · "}{tr("Day", "दिवस")} {Math.min(
                       plotTimeline.currentDay,
                       plotTimeline.totalDaysReleased
                     )} / {plotTimeline.totalDaysReleased}
-                    {" · "}Started {formatScheduleDate(
+                    {" · "}{tr("Started", "सुरू झाले")} {formatScheduleDate(
                       plotTimeline.progress.scheduleStartDate,
-                      "en"
+                      lang
                     )}
                   </>
                 )}
@@ -1334,14 +1363,18 @@ export default function FarmerDetailsPage() {
                 }`}
               >
                 {plotTimeline.status === "NOT_RELEASED"
-                  ? "Waiting for release"
-                  : plotTimeline.status}
+                  ? tr("Waiting for release", "सोडण्याची प्रतीक्षा")
+                  : plotTimeline.status === "COMPLETED"
+                    ? tr("Completed", "पूर्ण")
+                    : plotTimeline.status === "ACTIVE"
+                      ? tr("Active", "सक्रिय")
+                      : plotTimeline.status}
               </span>
             )}
           </div>
 
           {plotTimelineLoading && (
-            <p className="text-xs text-slate-500">Loading released schedule days…</p>
+            <p className="text-xs text-slate-500">{tr("Loading released schedule days…", "सोडलेले वेळापत्रकाचे दिवस लोड होत आहेत…")}</p>
           )}
           {plotTimelineError && (
             <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-800">
@@ -1407,7 +1440,7 @@ export default function FarmerDetailsPage() {
             >
               <SprayCan className="w-4 h-4" />
               <span>
-                Personalized Spray Schedule ({selectedPlot?.spraySchedule?.length || 0})
+                {tr("Personalized Spray Schedule", "वैयक्तिक फवारणी वेळापत्रक")} ({selectedPlot?.spraySchedule?.length || 0})
               </span>
             </button>
 
@@ -1421,7 +1454,7 @@ export default function FarmerDetailsPage() {
             >
               <Wheat className="w-4 h-4" />
               <span>
-                Personalized Fertilizer Schedule ({selectedPlot?.fertilizerSchedule?.length || 0})
+                {tr("Personalized Fertilizer Schedule", "वैयक्तिक खत वेळापत्रक")} ({selectedPlot?.fertilizerSchedule?.length || 0})
               </span>
             </button>
           </div>
@@ -1437,7 +1470,7 @@ export default function FarmerDetailsPage() {
                 className="inline-flex items-center space-x-1 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Spray Day to This Plot</span>
+                <span>{tr("+ Add Spray Day to This Plot", "+ या शेतजमिनीसाठी फवारणीचा दिवस जोडा")}</span>
               </button>
             ) : (
               <button
@@ -1449,7 +1482,7 @@ export default function FarmerDetailsPage() {
                 className="inline-flex items-center space-x-1 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Fertilizer Stage to This Plot</span>
+                <span>{tr("+ Add Fertilizer Stage to This Plot", "+ या शेतजमिनीसाठी खताचा टप्पा जोडा")}</span>
               </button>
             )}
           </div>
@@ -1461,7 +1494,7 @@ export default function FarmerDetailsPage() {
             {selectedPlot?.spraySchedule?.length === 0 ? (
               <div className="text-center py-8 text-slate-500 text-xs">
                 <SprayCan className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p>No spray schedule entries for this plot yet.</p>
+                <p>{tr("No spray schedule entries for this plot yet.", "या शेतजमिनीसाठी अद्याप फवारणीच्या नोंदी नाहीत.")}</p>
                 <button
                   onClick={() => {
                     setEditingSprayId(null);
@@ -1470,7 +1503,7 @@ export default function FarmerDetailsPage() {
                   }}
                   className="mt-2 text-emerald-700 font-bold hover:underline"
                 >
-                  Click here to add one
+                  {tr("Click here to add one", "नोंद जोडण्यासाठी येथे क्लिक करा")}
                 </button>
               </div>
             ) : (
@@ -1478,15 +1511,15 @@ export default function FarmerDetailsPage() {
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
-                      <th className="py-2.5 px-3">Crop Day</th>
-                      <th className="py-2.5 px-3">Scheduled Date</th>
-                      <th className="py-2.5 px-3">Time</th>
-                      <th className="py-2.5 px-3">Medicine (Prescribed)</th>
-                      <th className="py-2.5 px-3">Dosage Quantity</th>
-                      <th className="py-2.5 px-3">Water Required</th>
-                      <th className="py-2.5 px-3">Custom Notes</th>
-                      <th className="py-2.5 px-3 text-right">Send Advisory</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
+                      <th className="py-2.5 px-3">{tr("Crop Day", "पिकाचा दिवस")}</th>
+                      <th className="py-2.5 px-3">{tr("Scheduled Date", "नियोजित तारीख")}</th>
+                      <th className="py-2.5 px-3">{tr("Time", "वेळ")}</th>
+                      <th className="py-2.5 px-3">{tr("Medicine (Prescribed)", "औषध (निर्धारित)")}</th>
+                      <th className="py-2.5 px-3">{tr("Dosage Quantity", "औषधाचे प्रमाण")}</th>
+                      <th className="py-2.5 px-3">{tr("Water Required", "आवश्यक पाणी")}</th>
+                      <th className="py-2.5 px-3">{tr("Custom Notes", "विशेष टिपा")}</th>
+                      <th className="py-2.5 px-3 text-right">{tr("Send Advisory", "सल्ला पाठवा")}</th>
+                      <th className="py-2.5 px-3 text-right">{tr("Actions", "कृती")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1494,13 +1527,13 @@ export default function FarmerDetailsPage() {
                       <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-3">
                           <span className="font-extrabold text-slate-900 px-2 py-1 rounded bg-slate-100">
-                            Day {item.day}
+                            {tr("Day", "दिवस")} {item.day}
                           </span>
                         </td>
                         <td className="py-3 px-3 font-semibold text-slate-700">
                           {formatScheduleDate(
                             item.scheduledDate || dateFromCropDay(selectedPlot.sowingDate, item.day) || getDateInIndia(),
-                            "en"
+                            lang
                           )}
                         </td>
                         <td className="py-3 px-3">
@@ -1511,7 +1544,7 @@ export default function FarmerDetailsPage() {
                                 : "bg-indigo-100 text-indigo-800"
                             }`}
                           >
-                            {item.time}
+                            {item.time === "Morning" ? tr("Morning", "सकाळ") : item.time === "Evening" ? tr("Evening", "संध्याकाळ") : item.time}
                           </span>
                         </td>
                         <td className="py-3 px-3 font-bold text-slate-900">
@@ -1533,10 +1566,10 @@ export default function FarmerDetailsPage() {
                               className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
                             >
                               <Send className="w-3 h-3" />
-                              <span>Send WhatsApp</span>
+                              <span>{tr("Send WhatsApp", "WhatsApp पाठवा")}</span>
                             </button>
                           ) : (
-                            <span className="text-[10px] text-slate-400">Not in latest release</span>
+                            <span className="text-[10px] text-slate-400">{tr("Not in latest release", "नवीनतम वेळापत्रकात नाही")}</span>
                           )}
                         </td>
                         <td className="py-3 px-3 text-right space-x-1">
@@ -1560,14 +1593,16 @@ export default function FarmerDetailsPage() {
                               setShowSprayForm(true);
                             }}
                             className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg"
-                            title="Customize this day for this farmer"
+                            title={tr("Customize this day for this farmer", "या शेतकऱ्यासाठी हा दिवस सानुकूलित करा")}
+                            aria-label={tr("Customize this day for this farmer", "या शेतकऱ्यासाठी हा दिवस सानुकूलित करा")}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteSprayItem(item.id)}
                             className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
-                            title="Delete this day from this plot"
+                            title={tr("Delete this day from this plot", "या शेतजमिनीतून हा दिवस हटवा")}
+                            aria-label={tr("Delete this day from this plot", "या शेतजमिनीतून हा दिवस हटवा")}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1587,7 +1622,7 @@ export default function FarmerDetailsPage() {
             {selectedPlot?.fertilizerSchedule?.length === 0 ? (
               <div className="text-center py-8 text-slate-500 text-xs">
                 <Wheat className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p>No fertilizer schedule entries for this plot yet.</p>
+                <p>{tr("No fertilizer schedule entries for this plot yet.", "या शेतजमिनीसाठी अद्याप खताच्या नोंदी नाहीत.")}</p>
                 <button
                   onClick={() => {
                     setEditingFertId(null);
@@ -1596,7 +1631,7 @@ export default function FarmerDetailsPage() {
                   }}
                   className="mt-2 text-emerald-700 font-bold hover:underline"
                 >
-                  Click here to add one
+                  {tr("Click here to add one", "नोंद जोडण्यासाठी येथे क्लिक करा")}
                 </button>
               </div>
             ) : (
@@ -1604,15 +1639,15 @@ export default function FarmerDetailsPage() {
                 <table className="w-full text-left text-xs text-slate-600">
                   <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                     <tr>
-                      <th className="py-2.5 px-3">Crop Day</th>
-                      <th className="py-2.5 px-3">Scheduled Date</th>
-                      <th className="py-2.5 px-3">Crop Stage</th>
-                      <th className="py-2.5 px-3">Fertilizer Name</th>
-                      <th className="py-2.5 px-3">Quantity</th>
-                      <th className="py-2.5 px-3">Application Method</th>
-                      <th className="py-2.5 px-3">Custom Notes</th>
-                      <th className="py-2.5 px-3 text-right">Send Advisory</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
+                      <th className="py-2.5 px-3">{tr("Crop Day", "पिकाचा दिवस")}</th>
+                      <th className="py-2.5 px-3">{tr("Scheduled Date", "नियोजित तारीख")}</th>
+                      <th className="py-2.5 px-3">{tr("Crop Stage", "पिकाचा टप्पा")}</th>
+                      <th className="py-2.5 px-3">{tr("Fertilizer Name", "खताचे नाव")}</th>
+                      <th className="py-2.5 px-3">{tr("Quantity", "प्रमाण")}</th>
+                      <th className="py-2.5 px-3">{tr("Application Method", "वापरण्याची पद्धत")}</th>
+                      <th className="py-2.5 px-3">{tr("Custom Notes", "विशेष टिपा")}</th>
+                      <th className="py-2.5 px-3 text-right">{tr("Send Advisory", "सल्ला पाठवा")}</th>
+                      <th className="py-2.5 px-3 text-right">{tr("Actions", "कृती")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1620,13 +1655,13 @@ export default function FarmerDetailsPage() {
                       <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-3">
                           <span className="font-extrabold text-slate-900 px-2 py-1 rounded bg-slate-100">
-                            Day {item.day}
+                            {tr("Day", "दिवस")} {item.day}
                           </span>
                         </td>
                         <td className="py-3 px-3 font-semibold text-slate-700">
                           {formatScheduleDate(
                             item.scheduledDate || dateFromCropDay(selectedPlot.sowingDate, item.day) || getDateInIndia(),
-                            "en"
+                            lang
                           )}
                         </td>
                         <td className="py-3 px-3 font-semibold text-slate-800">
@@ -1653,10 +1688,10 @@ export default function FarmerDetailsPage() {
                               className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-colors"
                             >
                               <Send className="w-3 h-3" />
-                              <span>Send WhatsApp</span>
+                              <span>{tr("Send WhatsApp", "WhatsApp पाठवा")}</span>
                             </button>
                           ) : (
-                            <span className="text-[10px] text-slate-400">Not in latest release</span>
+                            <span className="text-[10px] text-slate-400">{tr("Not in latest release", "नवीनतम वेळापत्रकात नाही")}</span>
                           )}
                         </td>
                         <td className="py-3 px-3 text-right space-x-1">
@@ -1681,12 +1716,15 @@ export default function FarmerDetailsPage() {
                               setShowFertForm(true);
                             }}
                             className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg"
-                            title="Customize this fertilizer stage"
+                            title={tr("Customize this fertilizer stage", "खताचा हा टप्पा सानुकूलित करा")}
+                            aria-label={tr("Customize this fertilizer stage", "खताचा हा टप्पा सानुकूलित करा")}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteFertItem(item.id)}
+                            title={tr("Delete this fertilizer stage from this plot", "या शेतजमिनीतून खताचा हा टप्पा हटवा")}
+                            aria-label={tr("Delete this fertilizer stage from this plot", "या शेतजमिनीतून खताचा हा टप्पा हटवा")}
                             className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1703,9 +1741,9 @@ export default function FarmerDetailsPage() {
       </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-          <p className="text-sm font-bold text-slate-700">No plots for this farmer yet.</p>
+          <p className="text-sm font-bold text-slate-700">{tr("No plots for this farmer yet.", "या शेतकऱ्यासाठी अद्याप शेतजमिनी नाहीत.")}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Add a plot to create and manage its schedules.
+            {tr("Add a plot to create and manage its schedules.", "वेळापत्रक तयार करण्यासाठी आणि व्यवस्थापित करण्यासाठी शेतजमीन जोडा.")}
           </p>
         </div>
       )}
@@ -1720,12 +1758,13 @@ export default function FarmerDetailsPage() {
             <div className="bg-emerald-800 text-white p-4 flex items-center justify-between">
               <h3 className="font-bold text-sm">
                 {editingSprayId
-                  ? `Customize Day ${sprayForm.day} for ${farmer.name}`
-                  : `Add Personalized Spray Day to ${selectedPlot.plotName}`}
+                  ? tr(`Customize Day ${sprayForm.day} for ${farmer.name}`, `${farmer.name} यांच्यासाठी दिवस ${sprayForm.day} सानुकूलित करा`)
+                  : tr(`Add Personalized Spray Day to ${selectedPlot.plotName}`, `${selectedPlot.plotName} साठी वैयक्तिक फवारणीचा दिवस जोडा`)}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowSprayForm(false)}
+                aria-label={tr("Close", "बंद करा")}
                 className="text-emerald-200 hover:text-white"
               >
                 ✕
@@ -1736,7 +1775,7 @@ export default function FarmerDetailsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Crop Day (दिवस) *
+                    {tr("Crop Day (दिवस) *", "पिकाचा दिवस *")}
                   </label>
                   <input
                     type="number"
@@ -1752,7 +1791,7 @@ export default function FarmerDetailsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Timing *
+                    {tr("Timing *", "वेळ *")}
                   </label>
                   <select
                     value={sprayForm.time}
@@ -1761,15 +1800,15 @@ export default function FarmerDetailsPage() {
                     }
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                   >
-                    <option value="Morning">Morning (सकाळ)</option>
-                    <option value="Evening">Evening (संध्याकाळ)</option>
+                    <option value="Morning">{tr("Morning (सकाळ)", "सकाळ")}</option>
+                    <option value="Evening">{tr("Evening (संध्याकाळ)", "संध्याकाळ")}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Scheduled Date *
+                  {tr("Scheduled Date *", "नियोजित तारीख *")}
                 </label>
                 <input
                   type="date"
@@ -1784,7 +1823,7 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Medicine *
+                  {tr("Medicine *", "औषध *")}
                 </label>
                 <input
                   type="text"
@@ -1803,7 +1842,7 @@ export default function FarmerDetailsPage() {
                       unit: medicine?.unitShortName || sprayForm.unit,
                     });
                   }}
-                  placeholder="Type a medicine name or choose a suggestion"
+                  placeholder={tr("Type a medicine name or choose a suggestion", "औषधाचे नाव टाइप करा किंवा सूचना निवडा")}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
                 />
                 <datalist id={`farmer-medicines-${farmer.id}`}>
@@ -1818,7 +1857,7 @@ export default function FarmerDetailsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Dosage Quantity & Unit *
+                    {tr("Dosage Quantity & Unit *", "औषधाचे प्रमाण आणि एकक *")}
                   </label>
                   <div className="flex space-x-1">
                     <input
@@ -1833,7 +1872,7 @@ export default function FarmerDetailsPage() {
                     <input
                       type="text"
                       required
-                      aria-label="Dosage unit"
+                      aria-label={tr("Dosage unit", "औषधाच्या प्रमाणाचे एकक")}
                       value={sprayForm.unit}
                       onChange={(e) =>
                         setSprayForm({ ...sprayForm, unit: e.target.value })
@@ -1845,7 +1884,7 @@ export default function FarmerDetailsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Water Quantity *
+                    {tr("Water Quantity *", "पाण्याचे प्रमाण *")}
                   </label>
                   <input
                     type="text"
@@ -1861,7 +1900,7 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Custom Notes for Farmer
+                  {tr("Custom Notes for Farmer", "शेतकऱ्यासाठी विशेष टिपा")}
                 </label>
                 <textarea
                   rows={2}
@@ -1869,7 +1908,7 @@ export default function FarmerDetailsPage() {
                   onChange={(e) =>
                     setSprayForm({ ...sprayForm, note: e.target.value })
                   }
-                  placeholder="e.g. Advised due to leaf curl noticed in survey."
+                  placeholder={tr("e.g. Advised due to leaf curl noticed in survey.", "उदा. पाहणीत पानांचा गुंडाळा दिसल्याने हा सल्ला दिला.")}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                 />
               </div>
@@ -1880,14 +1919,14 @@ export default function FarmerDetailsPage() {
                   onClick={() => setShowSprayForm(false)}
                   className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold"
                 >
-                  Cancel
+                  {tr("Cancel", "रद्द करा")}
                 </button>
                 <button
                   type="submit"
                   disabled={savingAction !== null}
                   className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  {savingAction === "spray" ? "Saving..." : "Save Plot Customization"}
+                  {savingAction === "spray" ? tr("Saving...", "जतन करत आहे...") : tr("Save Plot Customization", "शेतजमिनीचे बदल जतन करा")}
                 </button>
               </div>
             </div>
@@ -1905,12 +1944,13 @@ export default function FarmerDetailsPage() {
             <div className="bg-emerald-800 text-white p-4 flex items-center justify-between">
               <h3 className="font-bold text-sm">
                 {editingFertId
-                  ? `Customize Fertilizer Day ${fertForm.day}`
-                  : `Add Fertilizer Stage to ${selectedPlot.plotName}`}
+                  ? tr(`Customize Fertilizer Day ${fertForm.day}`, `खताचा दिवस ${fertForm.day} सानुकूलित करा`)
+                  : tr(`Add Fertilizer Stage to ${selectedPlot.plotName}`, `${selectedPlot.plotName} साठी खताचा टप्पा जोडा`)}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowFertForm(false)}
+                aria-label={tr("Close", "बंद करा")}
                 className="text-emerald-200 hover:text-white"
               >
                 ✕
@@ -1921,7 +1961,7 @@ export default function FarmerDetailsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Crop Day *
+                    {tr("Crop Day *", "पिकाचा दिवस *")}
                   </label>
                   <input
                     type="number"
@@ -1937,7 +1977,7 @@ export default function FarmerDetailsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Stage Name *
+                    {tr("Stage Name *", "टप्प्याचे नाव *")}
                   </label>
                   <input
                     type="text"
@@ -1953,7 +1993,7 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Scheduled Date *
+                  {tr("Scheduled Date *", "नियोजित तारीख *")}
                 </label>
                 <input
                   type="date"
@@ -1968,7 +2008,7 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Fertilizer *
+                  {tr("Fertilizer *", "खत *")}
                 </label>
                 <input
                   type="text"
@@ -1988,7 +2028,7 @@ export default function FarmerDetailsPage() {
                       unit: fertilizer?.unit || fertForm.unit,
                     });
                   }}
-                  placeholder="Type a fertilizer name or choose a suggestion"
+                  placeholder={tr("Type a fertilizer name or choose a suggestion", "खताचे नाव टाइप करा किंवा सूचना निवडा")}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
                 />
                 <datalist id={`farmer-fertilizers-${farmer.id}`}>
@@ -2003,7 +2043,7 @@ export default function FarmerDetailsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Quantity & Unit *
+                    {tr("Quantity & Unit *", "प्रमाण आणि एकक *")}
                   </label>
                   <div className="flex space-x-1">
                     <input
@@ -2018,7 +2058,7 @@ export default function FarmerDetailsPage() {
                     <input
                       type="text"
                       required
-                      aria-label="Fertilizer quantity unit"
+                      aria-label={tr("Fertilizer quantity unit", "खताच्या प्रमाणाचे एकक")}
                       value={fertForm.unit}
                       onChange={(e) =>
                         setFertForm({ ...fertForm, unit: e.target.value })
@@ -2030,7 +2070,7 @@ export default function FarmerDetailsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Application Method *
+                    {tr("Application Method *", "वापरण्याची पद्धत *")}
                   </label>
                   <select
                     value={fertForm.applicationMethod}
@@ -2039,16 +2079,16 @@ export default function FarmerDetailsPage() {
                     }
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                   >
-                    <option value="Drip Irrigation (ठिबकद्वारे)">Drip Irrigation (ठिबकद्वारे)</option>
-                    <option value="Broadcasting in bed (बेसल डोस)">Broadcasting in bed (बेसल डोस)</option>
-                    <option value="Soil Drenching (आळवणी)">Soil Drenching (आळवणी)</option>
+                    <option value="Drip Irrigation (ठिबकद्वारे)">{tr("Drip Irrigation (ठिबकद्वारे)", "ठिबक सिंचन")}</option>
+                    <option value="Broadcasting in bed (बेसल डोस)">{tr("Broadcasting in bed (बेसल डोस)", "वाफ्यात पसरवणे (बेसल डोस)")}</option>
+                    <option value="Soil Drenching (आळवणी)">{tr("Soil Drenching (आळवणी)", "जमिनीत आळवणी")}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Custom Notes / Guidance
+                  {tr("Custom Notes / Guidance", "विशेष टिपा / मार्गदर्शन")}
                 </label>
                 <textarea
                   rows={2}
@@ -2066,14 +2106,14 @@ export default function FarmerDetailsPage() {
                   onClick={() => setShowFertForm(false)}
                   className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold"
                 >
-                  Cancel
+                  {tr("Cancel", "रद्द करा")}
                 </button>
                 <button
                   type="submit"
                   disabled={savingAction !== null}
                   className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  {savingAction === "fertilizer" ? "Saving..." : "Save Fertilizer Customization"}
+                  {savingAction === "fertilizer" ? tr("Saving...", "जतन करत आहे...") : tr("Save Fertilizer Customization", "खताचे बदल जतन करा")}
                 </button>
               </div>
             </div>
@@ -2089,11 +2129,12 @@ export default function FarmerDetailsPage() {
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200"
           >
             <div className="bg-emerald-800 text-white p-4 flex items-center justify-between">
-              <h3 className="font-bold text-sm">Add New Plot to {farmer.name}</h3>
+              <h3 className="font-bold text-sm">{tr(`Add New Plot to ${farmer.name}`, `${farmer.name} यांच्यासाठी नवीन शेतजमीन जोडा`)}</h3>
               <button
                 type="button"
                 onClick={() => setShowAddPlotModal(false)}
                 disabled={savingAction !== null}
+                aria-label={tr("Close", "बंद करा")}
                 className="text-emerald-200 hover:text-white"
               >
                 ✕
@@ -2103,7 +2144,7 @@ export default function FarmerDetailsPage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Plot Name / Location *
+                  {tr("Plot Name / Location *", "शेतजमिनीचे नाव / ठिकाण *")}
                 </label>
                 <input
                   type="text"
@@ -2112,14 +2153,14 @@ export default function FarmerDetailsPage() {
                   onChange={(e) =>
                     setNewPlotForm({ ...newPlotForm, plotName: e.target.value })
                   }
-                  placeholder="e.g. Plot 3 (विहिरीचे रान)"
+                  placeholder={tr("e.g. Plot 3 (विहिरीचे रान)", "उदा. शेतजमीन ३ (विहिरीचे रान)")}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Crop Name *
+                  {tr("Crop Name *", "पिकाचे नाव *")}
                 </label>
                 <select
                   value={newPlotForm.cropName}
@@ -2136,7 +2177,7 @@ export default function FarmerDetailsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Sowing / Plantation Date *
+                  {tr("Sowing / Plantation Date *", "पेरणी / लागवडीची तारीख *")}
                 </label>
                 <input
                   type="date"
@@ -2152,7 +2193,7 @@ export default function FarmerDetailsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Area Acre (एकर)
+                    {tr("Area Acre (एकर)", "क्षेत्र एकरमध्ये")}
                   </label>
                   <input
                     type="number"
@@ -2170,7 +2211,7 @@ export default function FarmerDetailsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Area Guntha (गुंठा)
+                    {tr("Area Guntha (गुंठा)", "क्षेत्र गुंठ्यात")}
                   </label>
                   <input
                     type="number"
@@ -2194,14 +2235,14 @@ export default function FarmerDetailsPage() {
                   onClick={() => setShowAddPlotModal(false)}
                   className="px-4 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-semibold"
                 >
-                  Cancel
+                  {tr("Cancel", "रद्द करा")}
                 </button>
                 <button
                   type="submit"
                   disabled={savingAction !== null}
                   className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold"
                 >
-                  {savingAction === "add-plot" ? "Creating..." : "Create Plot & Clone Schedule"}
+                  {savingAction === "add-plot" ? tr("Creating...", "तयार करत आहे...") : tr("Create Plot & Clone Schedule", "शेतजमीन तयार करा आणि वेळापत्रक प्रतिकृत करा")}
                 </button>
               </div>
             </div>

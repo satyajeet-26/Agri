@@ -335,14 +335,16 @@ export default function FarmerPanelPage() {
           </div>
         </div>
 
-        <section aria-label={lang === "mr" ? "शेतकरी पर्याय" : "Farmer options"} className="space-y-3">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900">
-              {lang === "mr" ? "तुम्हाला काय पाहायचे आहे?" : "What would you like to open?"}
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {lang === "mr" ? "खालील पर्याय निवडा." : "Choose one of the options below."}
-            </p>
+        <section aria-label="Farmer options" className="space-y-3">
+          <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Hello, farmer friend! 👋
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Complete planning for your farm, all in one place.
+              </p>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Link
@@ -488,10 +490,10 @@ export default function FarmerPanelPage() {
                 >
                   <span>
                     <strong className="block text-emerald-950">
-                      {rate.cropName} · {rate.marketName}
+                      {rate.cropName}{rate.marketName ? ` · ${rate.marketName}` : ""}
                     </strong>
                     <span className="mt-0.5 block text-emerald-900">
-                      {lang === "mr" ? "मोडल दर" : "Modal price"}: ₹{rate.modalPrice.toLocaleString("en-IN")} / Quintal ·{" "}
+                      {lang === "mr" ? "मोडल दर" : "Modal price"}: ₹{rate.modalPrice.toLocaleString("en-IN")} / {rate.rateUnit === "TON" ? lang === "mr" ? "टन" : "ton" : "kg"} ·{" "}
                       {formatScheduleDate(rate.rateDate, lang)}
                     </span>
                   </span>

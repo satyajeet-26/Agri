@@ -12,6 +12,7 @@ import {
   Droplets,
   Calendar,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   MasterCropSchedule,
   MasterFertilizerItem,
@@ -19,6 +20,8 @@ import {
 } from "@/types";
 
 export default function FertilizerMasterPage() {
+  const { lang } = useLanguage();
+  const tr = (en: string, mr: string) => (lang === "mr" ? mr : en);
   const [schedules, setSchedules] = useState<Record<string, MasterCropSchedule>>({});
   const [fertilizers, setFertilizers] = useState<Fertilizer[]>([]);
   const [selectedCrop, setSelectedCrop] = useState<string>("Tomato");
@@ -67,10 +70,10 @@ export default function FertilizerMasterPage() {
       const jsonFert = await resFert.json();
 
       if (!resSched.ok || !jsonSched.success) {
-        throw new Error(jsonSched.message || jsonSched.error || "Unable to load master schedules.");
+        throw new Error(jsonSched.message || jsonSched.error || tr("Unable to load master schedules.", "मास्टर वेळापत्रके लोड करता आली नाहीत."));
       }
       if (!resFert.ok || !jsonFert.success) {
-        throw new Error(jsonFert.message || jsonFert.error || "Unable to load fertilizer master data.");
+        throw new Error(jsonFert.message || jsonFert.error || tr("Unable to load fertilizer master data.", "खत मास्टरची माहिती लोड करता आली नाही."));
       }
 
       setSchedules(jsonSched.masterSchedules || {});
@@ -94,7 +97,7 @@ export default function FertilizerMasterPage() {
       console.error(err);
       showNotification(
         "error",
-        err instanceof Error ? err.message : "Unable to load fertilizer schedules."
+        err instanceof Error ? err.message : tr("Unable to load fertilizer schedules.", "खताचे वेळापत्रक लोड करता आले नाही.")
       );
     } finally {
       setLoading(false);
@@ -116,15 +119,15 @@ export default function FertilizerMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to add crop");
+        showNotification("error", json.message || json.error || tr("Failed to add crop", "पीक जोडता आले नाही"));
         return;
       }
       setSchedules(json.masterSchedules);
       setSelectedCrop(name);
       setNewCropName("");
-      showNotification("success", `Crop "${name}" created!`);
+      showNotification("success", tr(`Crop "${name}" created!`, `"${name}" पीक तयार केले!`));
     } catch (err) {
-      showNotification("error", "Failed to add crop");
+      showNotification("error", tr("Failed to add crop", "पीक जोडता आले नाही"));
     }
   };
 
@@ -159,10 +162,7 @@ export default function FertilizerMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification(
-          "error",
-          json.message || json.error || "Failed to save fertilizer schedule item"
-        );
+        showNotification("error", json.message || json.error || tr("Failed to save fertilizer schedule item", "खताच्या वेळापत्रकाची नोंद जतन करता आली नाही"));
         return;
       }
       setSchedules(json.masterSchedules);
@@ -176,11 +176,11 @@ export default function FertilizerMasterPage() {
       showNotification(
         "success",
         editingItemId
-          ? "Fertilizer stage updated in Master Schedule!"
-          : "Fertilizer stage added to Master Schedule!"
+          ? tr("Fertilizer stage updated in Master Schedule!", "मास्टर वेळापत्रकातील खताचा टप्पा अद्ययावत केला!")
+          : tr("Fertilizer stage added to Master Schedule!", "मास्टर वेळापत्रकात खताचा टप्पा जोडला!")
       );
     } catch (err) {
-      showNotification("error", "Failed to save fertilizer schedule item");
+      showNotification("error", tr("Failed to save fertilizer schedule item", "खताच्या वेळापत्रकाची नोंद जतन करता आली नाही"));
     }
   };
 
@@ -201,7 +201,7 @@ export default function FertilizerMasterPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm("Are you sure you want to delete this master schedule entry?")) return;
+    if (!confirm(tr("Are you sure you want to delete this master schedule entry?", "मास्टर वेळापत्रकातील ही नोंद हटवायची आहे का?"))) return;
     try {
       const res = await fetch("/api/schedules/master", {
         method: "POST",
@@ -215,13 +215,13 @@ export default function FertilizerMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to delete item");
+        showNotification("error", json.message || json.error || tr("Failed to delete item", "नोंद हटवता आली नाही"));
         return;
       }
       setSchedules(json.masterSchedules);
-      showNotification("success", "Item deleted from Master Schedule");
+      showNotification("success", tr("Item deleted from Master Schedule", "मास्टर वेळापत्रकातून नोंद हटवली"));
     } catch (err) {
-      showNotification("error", "Failed to delete item");
+      showNotification("error", tr("Failed to delete item", "नोंद हटवता आली नाही"));
     }
   };
 
@@ -244,11 +244,15 @@ export default function FertilizerMasterPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            4. Fertilizer Schedule Master
+            {tr("4. Fertilizer Schedule Master", "४. खत वेळापत्रक मास्टर")}
           </h1>
           <p className="text-xs text-slate-500">
-            Define standard crop-wise fertilizer & fertigation schedules. Changes affect the{" "}
-            <span className="font-bold text-emerald-700">Master Schedule only</span>.
+            {tr(
+              "Define standard crop-wise fertilizer & fertigation schedules. Changes affect the ",
+              "पिकानुसार खत आणि फर्टिगेशनचे मानक वेळापत्रक तयार करा. बदल फक्त "
+            )}
+            <span className="font-bold text-emerald-700">{tr("Master Schedule only", "मास्टर वेळापत्रकावर")}</span>
+            {tr(".", " परिणाम करतात.")}
           </p>
         </div>
 
@@ -274,7 +278,7 @@ export default function FertilizerMasterPage() {
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
-            Crops:
+            {tr("Crops:", "पिके:")}
           </span>
           {cropList.map((crop) => (
             <button
@@ -289,7 +293,7 @@ export default function FertilizerMasterPage() {
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {crop} ({schedules[crop]?.fertilizerSchedules?.length || 0} Stages)
+              {crop} ({schedules[crop]?.fertilizerSchedules?.length || 0} {tr("Stages", "टप्पे")})
             </button>
           ))}
         </div>
@@ -299,14 +303,14 @@ export default function FertilizerMasterPage() {
             type="text"
             value={newCropName}
             onChange={(e) => setNewCropName(e.target.value)}
-            placeholder="New Crop (e.g. Watermelon)"
+            placeholder={tr("New Crop (e.g. Watermelon)", "नवीन पीक (उदा. कलिंगड)")}
             className="text-xs p-2 bg-slate-50 border border-slate-300 rounded-xl w-48"
           />
           <button
             onClick={handleAddCrop}
             className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
           >
-            + Add Crop
+            {tr("+ Add Crop", "+ पीक जोडा")}
           </button>
         </div>
       </div>
@@ -321,8 +325,8 @@ export default function FertilizerMasterPage() {
             <Wheat className="w-4 h-4 text-emerald-700" />
             <span>
               {editingItemId
-                ? `Edit Stage in ${selectedCrop} Fertilizer Master`
-                : `Add Fertilizer Stage to ${selectedCrop} Master`}
+                ? tr(`Edit Stage in ${selectedCrop} Fertilizer Master`, `${selectedCrop} खत मास्टरमधील टप्पा संपादित करा`)
+                : tr(`Add Fertilizer Stage to ${selectedCrop} Master`, `${selectedCrop} मास्टरमध्ये खताचा टप्पा जोडा`)}
             </span>
           </h2>
           {editingItemId && (
@@ -331,7 +335,7 @@ export default function FertilizerMasterPage() {
               onClick={() => setEditingItemId(null)}
               className="text-xs text-slate-500 hover:underline"
             >
-              Cancel Edit
+              {tr("Cancel Edit", "संपादन रद्द करा")}
             </button>
           )}
         </div>
@@ -339,7 +343,7 @@ export default function FertilizerMasterPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Crop Day (e.g. 1, 15, 30) *
+              {tr("Crop Day (e.g. 1, 15, 30) *", "पिकाचा दिवस (उदा. १, १५, ३०) *")}
             </label>
             <input
               type="number"
@@ -353,7 +357,7 @@ export default function FertilizerMasterPage() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Stage Name *
+              {tr("Stage Name *", "टप्प्याचे नाव *")}
             </label>
             <input
               type="text"
@@ -361,13 +365,13 @@ export default function FertilizerMasterPage() {
               value={form.stage}
               onChange={(e) => setForm({ ...form, stage: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-              placeholder="e.g. Basal, Flowering"
+              placeholder={tr("e.g. Basal, Flowering", "उदा. बेसल, फुलोरा")}
             />
           </div>
 
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Select Fertilizer *
+              {tr("Select Fertilizer *", "खत निवडा *")}
             </label>
             <input
               type="text"
@@ -387,7 +391,7 @@ export default function FertilizerMasterPage() {
                   unit: fertilizer?.unit || current.unit,
                 }));
               }}
-              placeholder="Type a fertilizer name or select a suggestion"
+              placeholder={tr("Type a fertilizer name or select a suggestion", "खताचे नाव टाइप करा किंवा सूचना निवडा")}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium"
             />
             <datalist id="fertilizer-master-options">
@@ -401,7 +405,7 @@ export default function FertilizerMasterPage() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Quantity & Unit *
+              {tr("Quantity & Unit *", "प्रमाण आणि एकक *")}
             </label>
             <div className="flex space-x-1.5">
               <input
@@ -415,7 +419,7 @@ export default function FertilizerMasterPage() {
               <input
                 type="text"
                 required
-                aria-label="Fertilizer quantity unit"
+                aria-label={tr("Fertilizer quantity unit", "खताच्या प्रमाणाचे एकक")}
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
                 className="w-20 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs font-mono font-bold text-slate-700"
@@ -425,30 +429,30 @@ export default function FertilizerMasterPage() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Application Method *
+              {tr("Application Method *", "वापरण्याची पद्धत *")}
             </label>
             <select
               value={form.applicationMethod}
               onChange={(e) => setForm({ ...form, applicationMethod: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
             >
-              <option value="Drip Irrigation (ठिबकद्वारे)">Drip Irrigation (ठिबकद्वारे)</option>
-              <option value="Broadcasting in bed (बेसल डोस)">Broadcasting in bed (बेसल डोस)</option>
-              <option value="Soil Drenching (आळवणी)">Soil Drenching (आळवणी)</option>
-              <option value="Foliar Spray (पानांवर फवारणी)">Foliar Spray (पानांवर फवारणी)</option>
+              <option value="Drip Irrigation (ठिबकद्वारे)">{tr("Drip Irrigation (ठिबकद्वारे)", "ठिबक सिंचन")}</option>
+              <option value="Broadcasting in bed (बेसल डोस)">{tr("Broadcasting in bed (बेसल डोस)", "वाफ्यात पसरवणे (बेसल डोस)")}</option>
+              <option value="Soil Drenching (आळवणी)">{tr("Soil Drenching (आळवणी)", "जमिनीत आळवणी")}</option>
+              <option value="Foliar Spray (पानांवर फवारणी)">{tr("Foliar Spray (पानांवर फवारणी)", "पानांवर फवारणी")}</option>
             </select>
           </div>
 
           <div className="sm:col-span-2 lg:col-span-5">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Important Instructions / Notes
+              {tr("Important Instructions / Notes", "महत्त्वाच्या सूचना / टिपा")}
             </label>
             <input
               type="text"
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-              placeholder="e.g. Give through drip over 2 hours. Ensures rapid vegetative root growth."
+              placeholder={tr("e.g. Give through drip over 2 hours. Ensures rapid vegetative root growth.", "उदा. २ तास ठिबकद्वारे द्या. यामुळे वाढीच्या टप्प्यात मुळांची जलद वाढ होते.")}
             />
           </div>
 
@@ -458,7 +462,7 @@ export default function FertilizerMasterPage() {
               className="w-full inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
             >
               <Save className="w-4 h-4" />
-              <span>{editingItemId ? "Update Master" : "Add to Master"}</span>
+              <span>{editingItemId ? tr("Update Master", "मास्टर अद्ययावत करा") : tr("Add to Master", "मास्टरमध्ये जोडा")}</span>
             </button>
           </div>
         </div>
@@ -469,10 +473,10 @@ export default function FertilizerMasterPage() {
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
             <h3 className="font-bold text-slate-800 text-base">
-              Standard Fertilizer Schedule: {selectedCrop}
+              {tr("Standard Fertilizer Schedule:", "मानक खत वेळापत्रक:")} {selectedCrop}
             </h3>
             <p className="text-xs text-slate-500">
-              Total {fertList.length} application stages in master template
+              {tr(`Total ${fertList.length} application stages in master template`, `मास्टर नमुन्यात वापरण्याचे एकूण ${fertList.length} टप्पे`)}
             </p>
           </div>
         </div>
@@ -480,21 +484,21 @@ export default function FertilizerMasterPage() {
         {fertList.length === 0 ? (
           <div className="text-center py-10 text-slate-500 text-xs">
             <Wheat className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p>No fertilizer schedule entries added yet for {selectedCrop}.</p>
-            <p className="text-slate-400 mt-1">Use the form above to add stages.</p>
+            <p>{tr(`No fertilizer schedule entries added yet for ${selectedCrop}.`, `${selectedCrop} साठी अद्याप खत वेळापत्रक नोंदी जोडलेल्या नाहीत.`)}</p>
+            <p className="text-slate-400 mt-1">{tr("Use the form above to add stages.", "टप्पे जोडण्यासाठी वरील फॉर्म वापरा.")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">Day</th>
-                  <th className="py-2.5 px-3">Growth Stage</th>
-                  <th className="py-2.5 px-3">Fertilizer Name</th>
-                  <th className="py-2.5 px-3">Quantity</th>
-                  <th className="py-2.5 px-3">Application Method</th>
-                  <th className="py-2.5 px-3">Notes</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3">{tr("Day", "दिवस")}</th>
+                  <th className="py-2.5 px-3">{tr("Growth Stage", "वाढीचा टप्पा")}</th>
+                  <th className="py-2.5 px-3">{tr("Fertilizer Name", "खताचे नाव")}</th>
+                  <th className="py-2.5 px-3">{tr("Quantity", "प्रमाण")}</th>
+                  <th className="py-2.5 px-3">{tr("Application Method", "वापरण्याची पद्धत")}</th>
+                  <th className="py-2.5 px-3">{tr("Notes", "टिपा")}</th>
+                  <th className="py-2.5 px-3 text-right">{tr("Actions", "कृती")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -525,12 +529,16 @@ export default function FertilizerMasterPage() {
                     <td className="py-3 px-3 text-right space-x-1">
                       <button
                         onClick={() => handleEditClick(item)}
+                        title={tr("Edit fertilizer stage", "खताचा टप्पा संपादित करा")}
+                        aria-label={tr("Edit fertilizer stage", "खताचा टप्पा संपादित करा")}
                         className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item.id)}
+                        title={tr("Delete fertilizer stage", "खताचा टप्पा हटवा")}
+                        aria-label={tr("Delete fertilizer stage", "खताचा टप्पा हटवा")}
                         className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

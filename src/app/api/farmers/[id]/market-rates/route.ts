@@ -41,6 +41,7 @@ export async function GET(
         state: rate.state,
         district: rate.district,
         marketName: rate.marketName,
+        rateUnit: rate.rateUnit,
         minimumPrice: rate.minimumPrice,
         maximumPrice: rate.maximumPrice,
         modalPrice: rate.modalPrice,

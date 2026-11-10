@@ -36,55 +36,55 @@ export function Sidebar() {
       icon: LayoutDashboard,
       href: "/admin",
       exact: true,
-      badge: "Overview",
+      badge: t("overview"),
     },
     {
       title: `1. ${t("menuGeneralMaster")}`,
       icon: Settings,
       href: "/admin/masters/general",
-      badge: "Shop & Location",
+      badge: t("shopLocation"),
     },
     {
       title: `2. ${t("menuMedicineMaster")}`,
       icon: Pill,
       href: "/admin/masters/medicines",
-      badge: "Medicines & Fert",
+      badge: t("medicinesFertilizers"),
     },
     {
       title: `3. ${t("menuSprayMaster")}`,
       icon: SprayCan,
       href: "/admin/schedules/spray",
-      badge: "Master Spray",
+      badge: t("masterSpray"),
     },
     {
       title: `4. ${t("menuFertilizerMaster")}`,
       icon: Wheat,
       href: "/admin/schedules/fertilizer",
-      badge: "Master Fert",
+      badge: t("masterFertilizer"),
     },
     {
       title: `5. ${t("menuFarmerMaster")}`,
       icon: Users,
       href: "/admin/farmers",
-      badge: "Plots & Custom",
+      badge: t("plotsCustom"),
     },
     {
-      title: "6. Set Days",
+      title: `6. ${t("setDays")}`,
       icon: CalendarDays,
       href: "/admin/schedules/release",
-      badge: "Schedule Release",
+      badge: t("setDays"),
     },
     {
-      title: "7. Schedule Reminders",
+      title: `7. ${t("scheduleReminders")}`,
       icon: Bell,
       href: "/admin/whatsapp-notifications",
-      badge: "Manual Send",
+      badge: t("manualSend"),
     },
     {
       title: `8. ${t("menuMarketRates")}`,
       icon: Store,
       href: "/admin/market-rates",
-      badge: "Daily Rates",
+      badge: t("dailyRates"),
     },
   ];
 
@@ -97,7 +97,7 @@ export function Sidebar() {
     <>
       {/* Mobile Toggle Button */}
       <div className="lg:hidden p-3 bg-emerald-900 text-white flex items-center justify-between shadow-sm">
-        <span className="font-semibold text-sm">Krushi Admin Menu</span>
+        <span className="font-semibold text-sm">{t("adminMenu")}</span>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="p-1.5 rounded-lg bg-emerald-800 text-amber-300 hover:text-white"
@@ -117,9 +117,9 @@ export function Sidebar() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold tracking-wider uppercase text-emerald-400">
-                Krushi Admin Panel
+                {t("adminPanel")}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Consultancy Management</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("consultancyManagement")}</p>
             </div>
             <button
               onClick={() => setMobileOpen(false)}
@@ -179,10 +179,10 @@ export function Sidebar() {
         {/* Quick Rule Reminder in Sidebar Footer */}
         <div className="p-4 m-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs">
           <p className="font-semibold text-emerald-300 flex items-center space-x-1">
-            <span>🌾 Customization Rule</span>
+            <span>🌾 {t("customizationRule")}</span>
           </p>
           <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-            Farmer schedule edits apply <span className="text-amber-300 font-medium">only to that farmer&apos;s plot</span>. The Master Schedule remains permanently safe.
+            {t("customizationDescription")}
           </p>
         </div>
       </aside>

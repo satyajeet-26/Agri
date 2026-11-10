@@ -1,4 +1,4 @@
-import { MarketRateStatus } from "@/types";
+import { MarketRateStatus, MarketRateUnit } from "@/types";
 
 export interface MarketRateInput {
   cropName: string;
@@ -6,6 +6,7 @@ export interface MarketRateInput {
   state: string;
   district: string;
   marketName: string;
+  rateUnit: MarketRateUnit;
   minimumPrice: number;
   maximumPrice: number;
   modalPrice: number;
@@ -37,7 +38,6 @@ export function validateMarketRateInput(
     ["cropVariety", "Crop variety"],
     ["state", "State"],
     ["district", "District"],
-    ["marketName", "APMC market"],
   ] as const;
   for (const [field, label] of textFields) {
     const text = data[field];
@@ -49,8 +49,15 @@ export function validateMarketRateInput(
     }
     requiredText[field] = text.trim();
   }
+  const marketName = data.marketName === undefined ? "" : data.marketName;
+  if (typeof marketName !== "string" || marketName.trim().length > 120) {
+    return { error: "Market name must be 120 characters or fewer." };
+  }
   if (!isValidRateDate(data.rateDate)) {
     return { error: "Select a valid market rate date." };
+  }
+  if (data.rateUnit !== "KG" && data.rateUnit !== "TON") {
+    return { error: "Select a price unit: kg or ton." };
   }
 
   const minimumPrice = data.minimumPrice;
@@ -95,7 +102,8 @@ export function validateMarketRateInput(
       cropVariety: requiredText.cropVariety,
       state: requiredText.state,
       district: requiredText.district,
-      marketName: requiredText.marketName,
+      marketName: marketName.trim(),
+      rateUnit: data.rateUnit,
       minimumPrice,
       maximumPrice,
       modalPrice,

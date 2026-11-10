@@ -13,6 +13,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   ShopProfile,
   YearMaster,
@@ -28,6 +29,14 @@ function createLocationId(prefix: string): string {
 }
 
 export default function GeneralMasterPage() {
+  const { lang } = useLanguage();
+  const mr = lang === "mr";
+  const locationLabels = {
+    state: mr ? "राज्य" : "state",
+    district: mr ? "जिल्हा" : "district",
+    taluka: mr ? "तालुका" : "taluka",
+    village: mr ? "गाव" : "village",
+  };
   const [activeTab, setActiveTab] = useState<
     "shop" | "years" | "units" | "login" | "locations"
   >("shop");
@@ -122,12 +131,12 @@ export default function GeneralMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.error || `Failed to save ${section}.`);
+        showNotification("error", json.error || (mr ? `${section} जतन करता आले नाही.` : `Failed to save ${section}.`));
         return false;
       }
       return true;
     } catch {
-      showNotification("error", `Failed to save ${section}.`);
+      showNotification("error", mr ? `${section} जतन करता आले नाही.` : `Failed to save ${section}.`);
       return false;
     }
   };
@@ -138,7 +147,7 @@ export default function GeneralMasterPage() {
 
     if (locationSubTab === "state") {
       if (states.some((state) => state.name.toLowerCase() === name.toLowerCase())) {
-        showNotification("error", "This state already exists.");
+        showNotification("error", mr ? "हे राज्य आधीपासून अस्तित्वात आहे." : "This state already exists.");
         return;
       }
       const state = { id: createLocationId("st"), name };
@@ -149,18 +158,18 @@ export default function GeneralMasterPage() {
         setSelectedDistrictId("");
         setSelectedTalukaId("");
         setNewLocationName("");
-        showNotification("success", "State added.");
+        showNotification("success", mr ? "राज्य जोडले." : "State added.");
       }
       return;
     }
 
     if (locationSubTab === "district") {
       if (!selectedStateId) {
-        showNotification("error", "Add and select a state first.");
+        showNotification("error", mr ? "प्रथम राज्य जोडा आणि निवडा." : "Add and select a state first.");
         return;
       }
       if (districts.some((district) => district.stateId === selectedStateId && district.name.toLowerCase() === name.toLowerCase())) {
-        showNotification("error", "This district already exists in the selected state.");
+        showNotification("error", mr ? "निवडलेल्या राज्यात हा जिल्हा आधीपासून आहे." : "This district already exists in the selected state.");
         return;
       }
       const district = { id: createLocationId("dt"), stateId: selectedStateId, name };
@@ -170,18 +179,18 @@ export default function GeneralMasterPage() {
         setSelectedDistrictId(district.id);
         setSelectedTalukaId("");
         setNewLocationName("");
-        showNotification("success", "District added.");
+        showNotification("success", mr ? "जिल्हा जोडला." : "District added.");
       }
       return;
     }
 
     if (locationSubTab === "taluka") {
       if (!selectedDistrictId) {
-        showNotification("error", "Add and select a district first.");
+        showNotification("error", mr ? "प्रथम जिल्हा जोडा आणि निवडा." : "Add and select a district first.");
         return;
       }
       if (talukas.some((taluka) => taluka.districtId === selectedDistrictId && taluka.name.toLowerCase() === name.toLowerCase())) {
-        showNotification("error", "This taluka already exists in the selected district.");
+        showNotification("error", mr ? "निवडलेल्या जिल्ह्यात हा तालुका आधीपासून आहे." : "This taluka already exists in the selected district.");
         return;
       }
       const taluka = { id: createLocationId("tk"), districtId: selectedDistrictId, name };
@@ -190,17 +199,17 @@ export default function GeneralMasterPage() {
         setTalukas(updated);
         setSelectedTalukaId(taluka.id);
         setNewLocationName("");
-        showNotification("success", "Taluka added.");
+        showNotification("success", mr ? "तालुका जोडला." : "Taluka added.");
       }
       return;
     }
 
     if (!selectedTalukaId) {
-      showNotification("error", "Add and select a taluka first.");
+      showNotification("error", mr ? "प्रथम तालुका जोडा आणि निवडा." : "Add and select a taluka first.");
       return;
     }
     if (villages.some((village) => village.talukaId === selectedTalukaId && village.name.toLowerCase() === name.toLowerCase())) {
-      showNotification("error", "This village already exists in the selected taluka.");
+      showNotification("error", mr ? "निवडलेल्या तालुक्यात हे गाव आधीपासून आहे." : "This village already exists in the selected taluka.");
       return;
     }
     const village = { id: createLocationId("vg"), talukaId: selectedTalukaId, name };
@@ -208,7 +217,7 @@ export default function GeneralMasterPage() {
     if (await saveLocationList("villages", updated)) {
       setVillages(updated);
       setNewLocationName("");
-      showNotification("success", "Village added.");
+      showNotification("success", mr ? "गाव जोडले." : "Village added.");
     }
   };
 
@@ -220,13 +229,16 @@ export default function GeneralMasterPage() {
     const level = section.slice(0, -1);
     const cascadeWarning =
       section === "states"
-        ? " All districts, talukas, and villages inside it will also be deleted."
+        ? mr ? " त्यातील सर्व जिल्हे, तालुके आणि गावे देखील हटवली जातील." : " All districts, talukas, and villages inside it will also be deleted."
         : section === "districts"
-          ? " All talukas and villages inside it will also be deleted."
+          ? mr ? " त्यातील सर्व तालुके आणि गावे देखील हटवली जातील." : " All talukas and villages inside it will also be deleted."
           : section === "talukas"
-            ? " All villages inside it will also be deleted."
+            ? mr ? " त्यातील सर्व गावे देखील हटवली जातील." : " All villages inside it will also be deleted."
             : "";
-    if (!confirm(`Delete ${level} "${name}"?${cascadeWarning}`)) return;
+    const levelLabel = mr
+      ? section === "states" ? "राज्य" : section === "districts" ? "जिल्हा" : section === "talukas" ? "तालुका" : "गाव"
+      : level;
+    if (!confirm(mr ? `“${name}” ${levelLabel} हटवायचे का?${cascadeWarning}` : `Delete ${level} "${name}"?${cascadeWarning}`)) return;
 
     try {
       const res = await fetch("/api/masters/general", {
@@ -236,7 +248,7 @@ export default function GeneralMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.error || `Failed to delete ${level}.`);
+        showNotification("error", json.error || (mr ? `${levelLabel} हटवता आला नाही.` : `Failed to delete ${level}.`));
         return;
       }
       setStates(json.data.states);
@@ -258,9 +270,9 @@ export default function GeneralMasterPage() {
           ? current
           : ""
       );
-      showNotification("success", `${level[0].toUpperCase()}${level.slice(1)} deleted.`);
+      showNotification("success", mr ? `${levelLabel} हटवले.` : `${level[0].toUpperCase()}${level.slice(1)} deleted.`);
     } catch {
-      showNotification("error", `Failed to delete ${level}.`);
+      showNotification("error", mr ? `${levelLabel} हटवता आला नाही.` : `Failed to delete ${level}.`);
     }
   };
 
@@ -284,10 +296,10 @@ export default function GeneralMasterPage() {
       });
       const json = await res.json();
       if (json.success) {
-        showNotification("success", "Shop details updated successfully!");
+        showNotification("success", mr ? "दुकानाचा तपशील यशस्वीरित्या अद्ययावत केला!" : "Shop details updated successfully!");
       }
     } catch (err) {
-      showNotification("error", "Failed to update shop details.");
+      showNotification("error", mr ? "दुकानाचा तपशील अद्ययावत करता आला नाही." : "Failed to update shop details.");
     }
   };
 
@@ -305,11 +317,11 @@ export default function GeneralMasterPage() {
       });
       const json = await res.json();
       if (json.success) {
-        showNotification("success", "Admin login credentials updated successfully!");
+        showNotification("success", mr ? "प्रशासक लॉगिन तपशील यशस्वीरित्या अद्ययावत केले!" : "Admin login credentials updated successfully!");
         setAdminPassword("");
       }
     } catch (err) {
-      showNotification("error", "Failed to update login credentials.");
+      showNotification("error", mr ? "लॉगिन तपशील अद्ययावत करता आले नाहीत." : "Failed to update login credentials.");
     }
   };
 
@@ -331,7 +343,7 @@ export default function GeneralMasterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section: "years", data: updated }),
     });
-    showNotification("success", "Year added successfully!");
+    showNotification("success", mr ? "वर्ष यशस्वीरित्या जोडले!" : "Year added successfully!");
   };
 
   const handleToggleYearActive = async (id: string) => {
@@ -342,7 +354,7 @@ export default function GeneralMasterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section: "years", data: updated }),
     });
-    showNotification("success", "Active financial year updated!");
+    showNotification("success", mr ? "सक्रिय आर्थिक वर्ष अद्ययावत केले!" : "Active financial year updated!");
   };
 
   const handleDeleteYear = async (id: string) => {
@@ -371,7 +383,7 @@ export default function GeneralMasterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section: "units", data: updated }),
     });
-    showNotification("success", "Unit added successfully!");
+    showNotification("success", mr ? "एकक यशस्वीरित्या जोडले!" : "Unit added successfully!");
   };
 
   const handleDeleteUnit = async (id: string) => {
@@ -388,6 +400,7 @@ export default function GeneralMasterPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <span className="ml-3 text-sm text-slate-600">{mr ? "माहिती लोड होत आहे..." : "Loading settings..."}</span>
       </div>
     );
   }
@@ -398,10 +411,10 @@ export default function GeneralMasterPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            1. General Master Settings
+            {mr ? "१. सामान्य मुख्य सेटिंग्ज" : "1. General Master Settings"}
           </h1>
           <p className="text-xs text-slate-500">
-            Configure the shop profile, financial years, units, and admin login
+            {mr ? "दुकानाचे प्रोफाइल, आर्थिक वर्षे, मोजमापाची एकके आणि प्रशासक लॉगिन सेट करा" : "Configure the shop profile, financial years, units, and admin login"}
           </p>
         </div>
 
@@ -434,7 +447,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>A. Company / Shop Name</span>
+          <span>{mr ? "अ. कंपनी / दुकानाचे नाव" : "A. Company / Shop Name"}</span>
         </button>
 
         <button
@@ -446,7 +459,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <Calendar className="w-4 h-4" />
-          <span>B. Year Master</span>
+          <span>{mr ? "ब. वर्ष नोंद" : "B. Year Master"}</span>
         </button>
 
         <button
@@ -458,7 +471,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <Ruler className="w-4 h-4" />
-          <span>C. Unit Master</span>
+          <span>{mr ? "क. एकक नोंद" : "C. Unit Master"}</span>
         </button>
 
         <button
@@ -470,7 +483,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <KeyRound className="w-4 h-4" />
-          <span>D. Login Settings</span>
+          <span>{mr ? "ड. लॉगिन सेटिंग्ज" : "D. Login Settings"}</span>
         </button>
 
         <button
@@ -482,7 +495,7 @@ export default function GeneralMasterPage() {
           }`}
         >
           <MapPin className="w-4 h-4" />
-          <span>E. Location Master</span>
+          <span>{mr ? "इ. ठिकाण नोंद" : "E. Location Master"}</span>
         </button>
       </div>
 
@@ -494,13 +507,13 @@ export default function GeneralMasterPage() {
         >
           <h2 className="text-base font-bold text-slate-800 pb-2 border-b border-slate-100 flex items-center space-x-2">
             <Building2 className="w-5 h-5 text-emerald-700" />
-            <span>Krushi Seva Kendra Shop Details</span>
+            <span>{mr ? "कृषी सेवा केंद्र दुकानाचा तपशील" : "Krushi Seva Kendra Shop Details"}</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Company / Shop Name *
+                {mr ? "कंपनी / दुकानाचे नाव *" : "Company / Shop Name *"}
               </label>
               <input
                 type="text"
@@ -508,39 +521,39 @@ export default function GeneralMasterPage() {
                 value={shop.name}
                 onChange={(e) => setShop({ ...shop, name: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Shree Krushi Seva Kendra & Consultancy"
+                placeholder={mr ? "उदा. श्री कृषी सेवा केंद्र व सल्ला सेवा" : "e.g. Shree Krushi Seva Kendra & Consultancy"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Owner / Consultant Name
+                {mr ? "मालक / सल्लागाराचे नाव" : "Owner / Consultant Name"}
               </label>
               <input
                 type="text"
                 value={shop.ownerName}
                 onChange={(e) => setShop({ ...shop, ownerName: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Sachin Patil (M.Sc. Agri)"
+                placeholder={mr ? "उदा. सचिन पाटील (एम.एस्सी. ॲग्री)" : "e.g. Sachin Patil (M.Sc. Agri)"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tagline / Subtitle
+                {mr ? "बोधवाक्य / उपशीर्षक" : "Tagline / Subtitle"}
               </label>
               <input
                 type="text"
                 value={shop.tagline}
                 onChange={(e) => setShop({ ...shop, tagline: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="e.g. Complete Agricultural Consultancy & Quality Pesticides"
+                placeholder={mr ? "उदा. संपूर्ण कृषी सल्ला सेवा व दर्जेदार कीटकनाशके" : "e.g. Complete Agricultural Consultancy & Quality Pesticides"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Calling Mobile Number
+                {mr ? "संपर्क मोबाइल क्रमांक" : "Calling Mobile Number"}
               </label>
               <input
                 type="text"
@@ -553,7 +566,7 @@ export default function GeneralMasterPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Official WhatsApp Number (For Advisories)
+                {mr ? "अधिकृत व्हॉट्सॲप क्रमांक (सल्ल्यांसाठी)" : "Official WhatsApp Number (For Advisories)"}
               </label>
               <input
                 type="text"
@@ -566,7 +579,7 @@ export default function GeneralMasterPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Shop Email ID
+                {mr ? "दुकानाचा ईमेल पत्ता" : "Shop Email ID"}
               </label>
               <input
                 type="email"
@@ -579,20 +592,20 @@ export default function GeneralMasterPage() {
 
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Shop Address / Location
+                {mr ? "दुकानाचा पत्ता / ठिकाण" : "Shop Address / Location"}
               </label>
               <textarea
                 rows={2}
                 value={shop.address}
                 onChange={(e) => setShop({ ...shop, address: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="Market Yard, Near Old APMC, Karad, Dist. Satara"
+                placeholder={mr ? "मार्केट यार्ड, जुनी एपीएमसीजवळ, कराड, जि. सातारा" : "Market Yard, Near Old APMC, Karad, Dist. Satara"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Fertilizer License No.
+                {mr ? "खत परवाना क्रमांक" : "Fertilizer License No."}
               </label>
               <input
                 type="text"
@@ -601,13 +614,13 @@ export default function GeneralMasterPage() {
                   setShop({ ...shop, fertilizerLicenseNumber: e.target.value })
                 }
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="Enter fertilizer license number"
+                placeholder={mr ? "खत परवाना क्रमांक टाका" : "Enter fertilizer license number"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Pesticide License No.
+                {mr ? "कीटकनाशक परवाना क्रमांक" : "Pesticide License No."}
               </label>
               <input
                 type="text"
@@ -616,13 +629,13 @@ export default function GeneralMasterPage() {
                   setShop({ ...shop, pesticideLicenseNumber: e.target.value })
                 }
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="Enter pesticide license number"
+                placeholder={mr ? "कीटकनाशक परवाना क्रमांक टाका" : "Enter pesticide license number"}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                GST Number
+                {mr ? "जीएसटी क्रमांक" : "GST Number"}
               </label>
               <input
                 type="text"
@@ -640,7 +653,7 @@ export default function GeneralMasterPage() {
               className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all"
             >
               <Save className="w-4 h-4" />
-              <span>Save Company / Shop Profile</span>
+              <span>{mr ? "कंपनी / दुकानाचे प्रोफाइल जतन करा" : "Save Company / Shop Profile"}</span>
             </button>
           </div>
         </form>
@@ -651,15 +664,15 @@ export default function GeneralMasterPage() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-5">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
-              <h2 className="text-base font-bold text-slate-800">Financial / Agriculture Year Master</h2>
-              <p className="text-xs text-slate-500">Manage financial years (e.g. 2026–27, 2027–28)</p>
+              <h2 className="text-base font-bold text-slate-800">{mr ? "आर्थिक / कृषी वर्ष नोंद" : "Financial / Agriculture Year Master"}</h2>
+              <p className="text-xs text-slate-500">{mr ? "आर्थिक वर्षे व्यवस्थापित करा (उदा. २०२६–२७, २०२७–२८)" : "Manage financial years (e.g. 2026–27, 2027–28)"}</p>
             </div>
           </div>
 
           {/* Add Year Form */}
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-end gap-3">
             <div className="flex-1 w-full">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Year Name (e.g. 2026–27)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{mr ? "वर्षाचे नाव (उदा. २०२६–२७)" : "Year Name (e.g. 2026–27)"}</label>
               <input
                 type="text"
                 value={newYear.yearName}
@@ -669,7 +682,7 @@ export default function GeneralMasterPage() {
               />
             </div>
             <div className="w-full sm:w-44">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{mr ? "सुरुवातीची तारीख" : "Start Date"}</label>
               <input
                 type="date"
                 value={newYear.startDate}
@@ -678,7 +691,7 @@ export default function GeneralMasterPage() {
               />
             </div>
             <div className="w-full sm:w-44">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">End Date</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{mr ? "शेवटची तारीख" : "End Date"}</label>
               <input
                 type="date"
                 value={newYear.endDate}
@@ -691,7 +704,7 @@ export default function GeneralMasterPage() {
               className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Year</span>
+              <span>{mr ? "वर्ष जोडा" : "Add Year"}</span>
             </button>
           </div>
 
@@ -700,11 +713,11 @@ export default function GeneralMasterPage() {
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">Year Name</th>
-                  <th className="py-2.5 px-3">Start Date</th>
-                  <th className="py-2.5 px-3">End Date</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3">{mr ? "वर्षाचे नाव" : "Year Name"}</th>
+                  <th className="py-2.5 px-3">{mr ? "सुरुवातीची तारीख" : "Start Date"}</th>
+                  <th className="py-2.5 px-3">{mr ? "शेवटची तारीख" : "End Date"}</th>
+                  <th className="py-2.5 px-3">{mr ? "स्थिती" : "Status"}</th>
+                  <th className="py-2.5 px-3 text-right">{mr ? "कृती" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -722,7 +735,7 @@ export default function GeneralMasterPage() {
                             : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                         }`}
                       >
-                        {y.isActive ? "✓ Active Year" : "Set Active"}
+                        {y.isActive ? (mr ? "✓ सक्रिय वर्ष" : "✓ Active Year") : (mr ? "सक्रिय करा" : "Set Active")}
                       </button>
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -746,15 +759,15 @@ export default function GeneralMasterPage() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-5">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
-              <h2 className="text-base font-bold text-slate-800">Unit Master</h2>
-              <p className="text-xs text-slate-500">Units used for medicines, tonics and fertilizers</p>
+              <h2 className="text-base font-bold text-slate-800">{mr ? "एकक नोंद" : "Unit Master"}</h2>
+              <p className="text-xs text-slate-500">{mr ? "औषधे, टॉनिक आणि खतांसाठी वापरली जाणारी एकके" : "Units used for medicines, tonics and fertilizers"}</p>
             </div>
           </div>
 
           {/* Add Unit Form */}
           <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-end gap-3">
             <div className="flex-1 w-full">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Unit Full Name (e.g. Milliliter)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{mr ? "एककाचे पूर्ण नाव (उदा. मिलीलीटर)" : "Unit Full Name (e.g. Milliliter)"}</label>
               <input
                 type="text"
                 value={newUnit.unitName}
@@ -764,7 +777,7 @@ export default function GeneralMasterPage() {
               />
             </div>
             <div className="w-full sm:w-48">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Short Name / Symbol (e.g. ml)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{mr ? "लघुनाव / चिन्ह (उदा. ml)" : "Short Name / Symbol (e.g. ml)"}</label>
               <input
                 type="text"
                 value={newUnit.shortName}
@@ -778,7 +791,7 @@ export default function GeneralMasterPage() {
               className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Unit</span>
+              <span>{mr ? "एकक जोडा" : "Add Unit"}</span>
             </button>
           </div>
 
@@ -787,9 +800,9 @@ export default function GeneralMasterPage() {
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">Unit Name</th>
-                  <th className="py-2.5 px-3">Short Name</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3">{mr ? "एककाचे नाव" : "Unit Name"}</th>
+                  <th className="py-2.5 px-3">{mr ? "लघुनाव" : "Short Name"}</th>
+                  <th className="py-2.5 px-3 text-right">{mr ? "कृती" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -824,14 +837,14 @@ export default function GeneralMasterPage() {
           className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-5 max-w-lg"
         >
           <div className="pb-2 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-800">Admin Login Settings</h2>
-            <p className="text-xs text-slate-500">Change Admin login email address and security password</p>
+            <h2 className="text-base font-bold text-slate-800">{mr ? "प्रशासक लॉगिन सेटिंग्ज" : "Admin Login Settings"}</h2>
+            <p className="text-xs text-slate-500">{mr ? "प्रशासक लॉगिन ईमेल पत्ता आणि सुरक्षा पासवर्ड बदला" : "Change Admin login email address and security password"}</p>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Admin Email ID *
+                {mr ? "प्रशासक ईमेल पत्ता *" : "Admin Email ID *"}
               </label>
               <input
                 type="email"
@@ -844,13 +857,13 @@ export default function GeneralMasterPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                New Admin Password (leave blank to keep unchanged)
+                {mr ? "नवीन प्रशासक पासवर्ड (बदलायचा नसल्यास रिक्त ठेवा)" : "New Admin Password (leave blank to keep unchanged)"}
               </label>
               <input
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Enter new password"
+                placeholder={mr ? "नवीन पासवर्ड टाका" : "Enter new password"}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
               />
             </div>
@@ -862,7 +875,7 @@ export default function GeneralMasterPage() {
               className="inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
             >
               <Save className="w-4 h-4" />
-              <span>Update Login Credentials</span>
+              <span>{mr ? "लॉगिन तपशील अद्ययावत करा" : "Update Login Credentials"}</span>
             </button>
           </div>
         </form>
@@ -871,9 +884,9 @@ export default function GeneralMasterPage() {
       {activeTab === "locations" && (
         <div className="space-y-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
           <div>
-            <h2 className="text-base font-bold text-slate-800">Location Master</h2>
+            <h2 className="text-base font-bold text-slate-800">{mr ? "ठिकाण नोंद" : "Location Master"}</h2>
             <p className="text-xs text-slate-500">
-              Type and add each location in order: state, district, taluka, then village.
+              {mr ? "ठिकाणे या क्रमाने टाका व जोडा: राज्य, जिल्हा, तालुका आणि गाव." : "Type and add each location in order: state, district, taluka, then village."}
             </p>
           </div>
 
@@ -892,7 +905,7 @@ export default function GeneralMasterPage() {
                     : "bg-slate-50 text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                {level} ({level === "state" ? states.length : level === "district" ? districts.length : level === "taluka" ? talukas.length : villages.length})
+                {locationLabels[level]} ({level === "state" ? states.length : level === "district" ? districts.length : level === "taluka" ? talukas.length : villages.length})
               </button>
             ))}
           </div>
@@ -900,7 +913,7 @@ export default function GeneralMasterPage() {
           {locationSubTab !== "state" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  State
+                  {mr ? "राज्य" : "State"}
                   <select
                     value={selectedStateId}
                     onChange={(e) => {
@@ -913,13 +926,13 @@ export default function GeneralMasterPage() {
                     }}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                   >
-                    <option value="">Select State</option>
+                    <option value="">{mr ? "राज्य निवडा" : "Select State"}</option>
                     {states.map((state) => <option key={state.id} value={state.id}>{state.name}</option>)}
                   </select>
               </label>
               {(locationSubTab === "taluka" || locationSubTab === "village") && (
                 <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  District
+                  {mr ? "जिल्हा" : "District"}
                   <select
                     value={selectedDistrictId}
                     onChange={(e) => {
@@ -930,7 +943,7 @@ export default function GeneralMasterPage() {
                     }}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                   >
-                    <option value="">Select District</option>
+                    <option value="">{mr ? "जिल्हा निवडा" : "Select District"}</option>
                     {districts.filter((item) => item.stateId === selectedStateId).map((district) => (
                       <option key={district.id} value={district.id}>{district.name}</option>
                     ))}
@@ -939,13 +952,13 @@ export default function GeneralMasterPage() {
               )}
               {locationSubTab === "village" && (
                 <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  Taluka
+                  {mr ? "तालुका" : "Taluka"}
                   <select
                     value={selectedTalukaId}
                     onChange={(e) => setSelectedTalukaId(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                   >
-                    <option value="">Select Taluka</option>
+                    <option value="">{mr ? "तालुका निवडा" : "Select Taluka"}</option>
                     {talukas.filter((item) => item.districtId === selectedDistrictId).map((taluka) => (
                       <option key={taluka.id} value={taluka.id}>{taluka.name}</option>
                     ))}
@@ -967,7 +980,7 @@ export default function GeneralMasterPage() {
               required
               value={newLocationName}
               onChange={(e) => setNewLocationName(e.target.value)}
-              placeholder={`Type ${locationSubTab} name`}
+              placeholder={mr ? `${locationLabels[locationSubTab]}चे नाव टाका` : `Type ${locationSubTab} name`}
               className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
             />
             <button
@@ -975,7 +988,7 @@ export default function GeneralMasterPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800"
             >
               <Plus className="h-4 w-4" />
-              Add {locationSubTab}
+              {mr ? `${locationLabels[locationSubTab]} जोडा` : `Add ${locationSubTab}`}
             </button>
           </form>
 
@@ -1005,8 +1018,8 @@ export default function GeneralMasterPage() {
                       item.name
                     )
                   }
-                  aria-label={`Delete ${locationSubTab} ${item.name}`}
-                  title={`Delete ${locationSubTab}`}
+                  aria-label={mr ? `${locationLabels[locationSubTab]} ${item.name} हटवा` : `Delete ${locationSubTab} ${item.name}`}
+                  title={mr ? `${locationLabels[locationSubTab]} हटवा` : `Delete ${locationSubTab}`}
                   className="rounded-md p-1.5 text-red-600 hover:bg-red-100 hover:text-red-800"
                 >
                   <Trash2 className="h-4 w-4" />

@@ -685,6 +685,14 @@ function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
   } else if (!Array.isArray(data.marketRates)) {
     throw new Error("Database market rates are invalid.");
   }
+  for (const rate of data.marketRates) {
+    if (rate.rateUnit === undefined) {
+      rate.minimumPrice /= 100;
+      rate.maximumPrice /= 100;
+      rate.modalPrice /= 100;
+      rate.rateUnit = "KG";
+    }
+  }
   if (data.scheduleProgress === undefined) {
     data.scheduleProgress = [];
   } else if (!Array.isArray(data.scheduleProgress)) {

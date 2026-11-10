@@ -160,13 +160,13 @@ export default function AdminDashboardPage() {
             </div>
             <div>
               <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-900/60 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-1">
-                Krushi Seva Kendra Consultancy
+                {t("consultancySystem")}
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                 {db.shop.name}
               </h1>
               <p className="text-emerald-100 text-xs sm:text-sm mt-0.5 max-w-xl">
-                {db.shop.tagline || "Expert Agriculture Advisory, Spray Management & Crop Nutrition"}
+                {db.shop.tagline || (t("consultancySystem"))}
               </p>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function AdminDashboardPage() {
               {activeFarmers.length}
             </h3>
             <p className="text-xs text-emerald-600 font-medium mt-1">
-              Registered consultancy farmers
+              {t("registeredConsultancyFarmers")}
             </p>
           </div>
           <div className="w-13 h-13 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
@@ -213,7 +213,7 @@ export default function AdminDashboardPage() {
               {activePlots.length}
             </h3>
             <p className="text-xs text-blue-600 font-medium mt-1">
-              Active field plots under supervision
+              {t("activePlotsUnderSupervision")}
             </p>
           </div>
           <div className="w-13 h-13 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
@@ -231,7 +231,7 @@ export default function AdminDashboardPage() {
               {totalAreaFormatted}
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-1">
-              Total: {totalGunthaAll} Gunthas (1 Acre = 40 Guntha)
+              {t("totalAreaLabel")}: {totalGunthaAll} {t("gunthas")} ({t("acreConversion")})
             </p>
           </div>
           <div className="w-13 h-13 rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700">
@@ -244,16 +244,16 @@ export default function AdminDashboardPage() {
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="font-bold">Schedule Completed — Extension Needed</h2>
+              <h2 className="font-bold">{t("completedExtensionNeeded")}</h2>
               <p className="mt-1 text-xs">
-                These farmers have reached the final day currently released to them.
+                {t("completedExtensionDescription")}
               </p>
             </div>
             <Link
               href="/admin/schedules/release"
               className="w-fit rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white hover:bg-amber-800"
             >
-              Open Set Days
+              {t("openSetDays")}
             </Link>
           </div>
           <ul className="mt-3 space-y-1 text-xs">
@@ -267,7 +267,7 @@ export default function AdminDashboardPage() {
                     className="font-semibold underline"
                   >
                     {farmer?.name || "Farmer"} — {plot?.cropName || progress.cropId}
-                    {" · "}Last completed day: {progress.lastDeliveredDay}
+                    {" · "}{t("lastCompletedDay")}: {progress.lastDeliveredDay}
                   </Link>
                 </li>
               );
@@ -279,22 +279,22 @@ export default function AdminDashboardPage() {
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-bold text-slate-900">Plot Schedule Progress</h2>
+            <h2 className="font-bold text-slate-900">{t("plotScheduleProgress")}</h2>
             <p className="mt-1 text-xs text-slate-500">
-              Farmer → Plot → released schedule status
+              {t("releasedScheduleStatus")}
             </p>
           </div>
           <Link
             href="/admin/schedules/release"
             className="w-fit rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
           >
-            Manage Set Days
+            {t("manageSetDays")}
           </Link>
         </div>
 
         {(db.scheduleProgress || []).length === 0 ? (
           <p className="rounded-lg bg-slate-50 p-4 text-xs text-slate-600">
-            No plot schedules have been released yet.
+            {t("noSchedulesReleased")}
           </p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">

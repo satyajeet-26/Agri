@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Droplets,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   MasterCropSchedule,
   MasterSprayItem,
@@ -19,6 +20,8 @@ import {
 } from "@/types";
 
 export default function SprayMasterPage() {
+  const { lang } = useLanguage();
+  const mr = lang === "mr";
   const [schedules, setSchedules] = useState<Record<string, MasterCropSchedule>>({});
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [selectedCrop, setSelectedCrop] = useState<string>("Tomato");
@@ -64,10 +67,10 @@ export default function SprayMasterPage() {
       const jsonMed = await resMed.json();
 
       if (!resSched.ok || !jsonSched.success) {
-        throw new Error(jsonSched.message || jsonSched.error || "Unable to load master schedules.");
+        throw new Error(jsonSched.message || jsonSched.error || (mr ? "मुख्य वेळापत्रक लोड करता आले नाही." : "Unable to load master schedules."));
       }
       if (!resMed.ok || !jsonMed.success) {
-        throw new Error(jsonMed.message || jsonMed.error || "Unable to load medicine master data.");
+        throw new Error(jsonMed.message || jsonMed.error || (mr ? "औषधांची मुख्य माहिती लोड करता आली नाही." : "Unable to load medicine master data."));
       }
 
       setSchedules(jsonSched.masterSchedules || {});
@@ -99,7 +102,7 @@ export default function SprayMasterPage() {
       console.error(err);
       showNotification(
         "error",
-        err instanceof Error ? err.message : "Unable to load spray schedules."
+        err instanceof Error ? err.message : mr ? "फवारणीचे वेळापत्रक लोड करता आले नाही." : "Unable to load spray schedules."
       );
     } finally {
       setLoading(false);
@@ -121,15 +124,15 @@ export default function SprayMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to add crop");
+        showNotification("error", json.message || json.error || (mr ? "पीक जोडता आले नाही." : "Failed to add crop"));
         return;
       }
       setSchedules(json.masterSchedules);
       setSelectedCrop(name);
       setNewCropName("");
-      showNotification("success", `Crop "${name}" master schedule created!`);
+      showNotification("success", mr ? `“${name}” पिकाचे मुख्य वेळापत्रक तयार केले!` : `Crop "${name}" master schedule created!`);
     } catch (err) {
-      showNotification("error", "Failed to add crop");
+      showNotification("error", mr ? "पीक जोडताना त्रुटी आली." : "Failed to add crop");
     }
   };
 
@@ -137,7 +140,9 @@ export default function SprayMasterPage() {
     if (!selectedCrop) return;
     if (
       !confirm(
-        `Delete "${selectedCrop}" and its master spray and fertilizer schedules? Farmer-specific schedules will not be changed.`
+        mr
+          ? `“${selectedCrop}” पीक आणि त्याचे मुख्य फवारणी व खतांचे वेळापत्रक हटवायचे का? शेतकऱ्यांची वैयक्तिक वेळापत्रके बदलली जाणार नाहीत.`
+          : `Delete "${selectedCrop}" and its master spray and fertilizer schedules? Farmer-specific schedules will not be changed.`
       )
     ) {
       return;
@@ -154,7 +159,7 @@ export default function SprayMasterPage() {
       });
       const json = await response.json();
       if (!response.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to delete crop");
+        showNotification("error", json.message || json.error || (mr ? "पीक हटवता आले नाही." : "Failed to delete crop"));
         return;
       }
 
@@ -163,9 +168,9 @@ export default function SprayMasterPage() {
       setSchedules(remainingSchedules);
       setSelectedCrop(remainingCrops[0] || "");
       setEditingItemId(null);
-      showNotification("success", `Crop "${selectedCrop}" and its master schedules deleted.`);
+      showNotification("success", mr ? `“${selectedCrop}” पीक आणि त्याची मुख्य वेळापत्रके हटवली.` : `Crop "${selectedCrop}" and its master schedules deleted.`);
     } catch {
-      showNotification("error", "Network error while deleting crop");
+      showNotification("error", mr ? "पीक हटवताना नेटवर्क त्रुटी आली." : "Network error while deleting crop");
     }
   };
 
@@ -196,7 +201,7 @@ export default function SprayMasterPage() {
     e.preventDefault();
     if (!selectedCrop) return;
     if (form.medicines.length === 0 || form.medicines.some((item) => !item.medicineName.trim())) {
-      showNotification("error", "Enter a medicine name for every row before saving.");
+      showNotification("error", mr ? "जतन करण्यापूर्वी प्रत्येक ओळीसाठी औषधाचे नाव टाका." : "Enter a medicine name for every row before saving.");
       return;
     }
 
@@ -224,7 +229,7 @@ export default function SprayMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to save spray schedule item");
+        showNotification("error", json.message || json.error || (mr ? "फवारणी वेळापत्रक नोंद जतन करता आली नाही." : "Failed to save spray schedule item"));
         return;
       }
       setSchedules(json.masterSchedules);
@@ -241,11 +246,11 @@ export default function SprayMasterPage() {
       showNotification(
         "success",
         editingItemId
-          ? "Spray day updated in Master Schedule!"
-          : "Spray day added to Master Schedule!"
+          ? mr ? "मुख्य वेळापत्रकातील फवारणीचा दिवस अद्ययावत केला!" : "Spray day updated in Master Schedule!"
+          : mr ? "मुख्य वेळापत्रकात फवारणीचा दिवस जोडला!" : "Spray day added to Master Schedule!"
       );
     } catch (err) {
-      showNotification("error", "Failed to save spray schedule item");
+      showNotification("error", mr ? "फवारणी वेळापत्रक नोंद जतन करता आली नाही." : "Failed to save spray schedule item");
     }
   };
 
@@ -267,7 +272,7 @@ export default function SprayMasterPage() {
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm("Are you sure you want to delete this master schedule entry?")) return;
+    if (!confirm(mr ? "ही मुख्य वेळापत्रक नोंद हटवायची आहे का?" : "Are you sure you want to delete this master schedule entry?")) return;
     try {
       const res = await fetch("/api/schedules/master", {
         method: "POST",
@@ -281,13 +286,13 @@ export default function SprayMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showNotification("error", json.message || json.error || "Failed to delete item");
+        showNotification("error", json.message || json.error || (mr ? "नोंद हटवता आली नाही." : "Failed to delete item"));
         return;
       }
       setSchedules(json.masterSchedules);
-      showNotification("success", "Item deleted from Master Schedule");
+      showNotification("success", mr ? "मुख्य वेळापत्रकातील नोंद हटवली." : "Item deleted from Master Schedule");
     } catch (err) {
-      showNotification("error", "Failed to delete item");
+      showNotification("error", mr ? "नोंद हटवता आली नाही." : "Failed to delete item");
     }
   };
 
@@ -298,6 +303,7 @@ export default function SprayMasterPage() {
     return (
       <div className="flex items-center justify-center min-h-100">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <span className="ml-3 text-sm text-slate-600">{mr ? "फवारणीचे वेळापत्रक लोड होत आहे..." : "Loading spray schedules..."}</span>
       </div>
     );
   }
@@ -310,11 +316,11 @@ export default function SprayMasterPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            3. Spray Master / Schedule Master
+            {mr ? "३. फवारणी नोंद / वेळापत्रक नोंद" : "3. Spray Master / Schedule Master"}
           </h1>
           <p className="text-xs text-slate-500">
-            Define standard crop-wise spray schedules. Changes affect the{" "}
-            <span className="font-bold text-emerald-700">Master Schedule only</span>.
+            {mr ? "पिकानुसार प्रमाणित फवारणीचे वेळापत्रक ठरवा. केलेले बदल फक्त " : "Define standard crop-wise spray schedules. Changes affect the "}
+            <span className="font-bold text-emerald-700">{mr ? "मुख्य वेळापत्रकावर" : "Master Schedule only"}</span>.
           </p>
         </div>
 
@@ -341,7 +347,7 @@ export default function SprayMasterPage() {
         {/* Crop Pills */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-1 md:pb-0">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
-            Crops:
+            {mr ? "पिके:" : "Crops:"}
           </span>
           {cropList.map((crop) => (
             <button
@@ -356,7 +362,7 @@ export default function SprayMasterPage() {
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              {crop} ({schedules[crop]?.spraySchedules?.length || 0} Sprays)
+              {crop} ({schedules[crop]?.spraySchedules?.length || 0} {mr ? "फवारण्या" : "Sprays"})
             </button>
           ))}
         </div>
@@ -367,24 +373,24 @@ export default function SprayMasterPage() {
             type="text"
             value={newCropName}
             onChange={(e) => setNewCropName(e.target.value)}
-            placeholder="New Crop (e.g. Watermelon, Onion)"
+            placeholder={mr ? "नवीन पीक (उदा. Watermelon, Onion)" : "New Crop (e.g. Watermelon, Onion)"}
             className="text-xs p-2 bg-slate-50 border border-slate-300 rounded-xl w-48"
           />
           <button
             onClick={handleAddCrop}
             className="px-3 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold"
           >
-            + Add Crop
+            {mr ? "+ पीक जोडा" : "+ Add Crop"}
           </button>
           <button
             type="button"
             onClick={handleDeleteCrop}
             disabled={!selectedCrop}
             className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-            title={selectedCrop ? `Delete ${selectedCrop}` : "No crop selected"}
+            title={selectedCrop ? (mr ? `${selectedCrop} हटवा` : `Delete ${selectedCrop}`) : (mr ? "पीक निवडलेले नाही" : "No crop selected")}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Delete Crop
+            {mr ? "पीक हटवा" : "Delete Crop"}
           </button>
         </div>
       </div>
@@ -399,8 +405,8 @@ export default function SprayMasterPage() {
             <SprayCan className="w-4 h-4 text-emerald-700" />
             <span>
               {editingItemId
-                ? `Edit Day in ${selectedCrop} Spray Master`
-                : `Add New Spray Day to ${selectedCrop} Master`}
+                ? mr ? `${selectedCrop} मुख्य फवारणी नोंदीतील दिवस बदला` : `Edit Day in ${selectedCrop} Spray Master`
+                : mr ? `${selectedCrop} मुख्य वेळापत्रकात नवीन फवारणीचा दिवस जोडा` : `Add New Spray Day to ${selectedCrop} Master`}
             </span>
           </h2>
           {editingItemId && (
@@ -409,7 +415,7 @@ export default function SprayMasterPage() {
               onClick={() => setEditingItemId(null)}
               className="text-xs text-slate-500 hover:underline"
             >
-              Cancel Edit
+              {mr ? "बदल रद्द करा" : "Cancel Edit"}
             </button>
           )}
         </div>
@@ -417,7 +423,7 @@ export default function SprayMasterPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Crop Day (e.g. 4, 10, 20) *
+              {mr ? "पिकाचा दिवस (उदा. ४, १०, २०) *" : "Crop Day (e.g. 4, 10, 20) *"}
             </label>
             <input
               type="number"
@@ -431,7 +437,7 @@ export default function SprayMasterPage() {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Timing *
+              {mr ? "वेळ *" : "Timing *"}
             </label>
             <select
               value={form.time}
@@ -440,8 +446,8 @@ export default function SprayMasterPage() {
               }
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
             >
-              <option value="Morning">Morning (सकाळ)</option>
-              <option value="Evening">Evening (संध्याकाळ)</option>
+              <option value="Morning">{mr ? "सकाळ" : "Morning (सकाळ)"}</option>
+              <option value="Evening">{mr ? "संध्याकाळ" : "Evening (संध्याकाळ)"}</option>
             </select>
           </div>
         </div>
@@ -449,7 +455,7 @@ export default function SprayMasterPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-slate-700">
-              Medicines for this day ({form.medicines.length})
+              {mr ? `या दिवसासाठी औषधे (${form.medicines.length})` : `Medicines for this day (${form.medicines.length})`}
             </label>
             {!editingItemId && (
               <button
@@ -458,12 +464,12 @@ export default function SprayMasterPage() {
                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add another medicine
+                {mr ? "आणखी औषध जोडा" : "Add another medicine"}
               </button>
             )}
           </div>
           <p className="text-xs text-slate-500">
-            Add each medicine for this day separately; you can add as many as needed.
+            {mr ? "या दिवसासाठी प्रत्येक औषध स्वतंत्रपणे जोडा; आवश्यकतेनुसार अनेक औषधे जोडू शकता." : "Add each medicine for this day separately; you can add as many as needed."}
           </p>
 
           {form.medicines.map((item, index) => (
@@ -473,7 +479,7 @@ export default function SprayMasterPage() {
             >
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Medicine {index + 1} *
+                  {mr ? `औषध ${index + 1} *` : `Medicine ${index + 1} *`}
                 </label>
                 <input
                   type="text"
@@ -500,7 +506,7 @@ export default function SprayMasterPage() {
                       ),
                     }));
                   }}
-                  placeholder="Type a medicine name or choose a suggestion"
+                  placeholder={mr ? "औषधाचे नाव टाका किंवा सूचना निवडा" : "Type a medicine name or choose a suggestion"}
                   className="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl font-medium"
                 />
                 <datalist id={`spray-master-medicines-${index}`}>
@@ -514,7 +520,7 @@ export default function SprayMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Quantity *
+                  {mr ? "प्रमाण *" : "Quantity *"}
                 </label>
                 <div className="flex space-x-1.5">
                   <input
@@ -537,7 +543,7 @@ export default function SprayMasterPage() {
                   <input
                     type="text"
                     required
-                    aria-label={`Unit for medicine ${index + 1}`}
+                    aria-label={mr ? `औषध ${index + 1} चे एकक` : `Unit for medicine ${index + 1}`}
                     value={item.unit}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -559,7 +565,7 @@ export default function SprayMasterPage() {
                   type="button"
                   onClick={() => handleRemoveMedicineRow(index)}
                   className="justify-self-end rounded-lg p-2 text-red-600 hover:bg-red-50 sm:mb-0.5"
-                  aria-label={`Remove medicine ${index + 1}`}
+                  aria-label={mr ? `औषध ${index + 1} काढा` : `Remove medicine ${index + 1}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -571,7 +577,7 @@ export default function SprayMasterPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Water Quantity *
+              {mr ? "पाण्याचे प्रमाण *" : "Water Quantity *"}
             </label>
             <input
               type="text"
@@ -579,20 +585,20 @@ export default function SprayMasterPage() {
               value={form.waterQuantity}
               onChange={(e) => setForm({ ...form, waterQuantity: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-              placeholder="15 Litres"
+              placeholder={mr ? "१५ लिटर" : "15 Litres"}
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Important Notes / Spray Advice / Sticker
+              {mr ? "महत्त्वाच्या सूचना / फवारणीचा सल्ला / स्टिकर" : "Important Notes / Spray Advice / Sticker"}
             </label>
             <input
               type="text"
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
               className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-              placeholder="e.g. Preventive spray against early blight."
+              placeholder={mr ? "उदा. करपा रोगासाठी प्रतिबंधात्मक फवारणी." : "e.g. Preventive spray against early blight."}
             />
           </div>
         </div>
@@ -603,7 +609,7 @@ export default function SprayMasterPage() {
               className="w-full inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
             >
               <Save className="w-4 h-4" />
-              <span>{editingItemId ? "Update Master" : "Add to Master"}</span>
+              <span>{editingItemId ? (mr ? "मुख्य नोंद अद्ययावत करा" : "Update Master") : (mr ? "मुख्य नोंदीत जोडा" : "Add to Master")}</span>
             </button>
           </div>
         </div>
@@ -614,10 +620,10 @@ export default function SprayMasterPage() {
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
             <h3 className="font-bold text-slate-800 text-base">
-              Standard Spray Schedule: {selectedCrop}
+              {mr ? `प्रमाणित फवारणी वेळापत्रक: ${selectedCrop}` : `Standard Spray Schedule: ${selectedCrop}`}
             </h3>
             <p className="text-xs text-slate-500">
-              Total {sprayList.length} spray stages configured in template
+              {mr ? `साच्यात एकूण ${sprayList.length} फवारणी टप्पे सेट केले आहेत` : `Total ${sprayList.length} spray stages configured in template`}
             </p>
           </div>
         </div>
@@ -625,21 +631,21 @@ export default function SprayMasterPage() {
         {sprayList.length === 0 ? (
           <div className="text-center py-10 text-slate-500 text-xs">
             <SprayCan className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p>No spray schedule entries added yet for {selectedCrop}.</p>
-            <p className="text-slate-400 mt-1">Use the form above to add Day 4, Day 10, etc.</p>
+            <p>{mr ? `${selectedCrop} साठी अद्याप फवारणीचे वेळापत्रक जोडलेले नाही.` : `No spray schedule entries added yet for ${selectedCrop}.`}</p>
+            <p className="text-slate-400 mt-1">{mr ? "दिवस ४, दिवस १० इत्यादी जोडण्यासाठी वरील फॉर्म वापरा." : "Use the form above to add Day 4, Day 10, etc."}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600">
               <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="py-2.5 px-3">Day / Stage</th>
-                  <th className="py-2.5 px-3">Time</th>
-                  <th className="py-2.5 px-3">Medicine Name</th>
-                  <th className="py-2.5 px-3">Quantity</th>
-                  <th className="py-2.5 px-3">Water Required</th>
-                  <th className="py-2.5 px-3">Important Notes</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3">{mr ? "दिवस / टप्पा" : "Day / Stage"}</th>
+                  <th className="py-2.5 px-3">{mr ? "वेळ" : "Time"}</th>
+                  <th className="py-2.5 px-3">{mr ? "औषधाचे नाव" : "Medicine Name"}</th>
+                  <th className="py-2.5 px-3">{mr ? "प्रमाण" : "Quantity"}</th>
+                  <th className="py-2.5 px-3">{mr ? "आवश्यक पाणी" : "Water Required"}</th>
+                  <th className="py-2.5 px-3">{mr ? "महत्त्वाच्या सूचना" : "Important Notes"}</th>
+                  <th className="py-2.5 px-3 text-right">{mr ? "कृती" : "Actions"}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -647,7 +653,7 @@ export default function SprayMasterPage() {
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3 px-3">
                       <span className="font-bold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        {item.day}th Day
+                        {mr ? `दिवस ${item.day}` : `${item.day}th Day`}
                       </span>
                     </td>
                     <td className="py-3 px-3">
@@ -658,7 +664,7 @@ export default function SprayMasterPage() {
                             : "bg-indigo-100 text-indigo-800"
                         }`}
                       >
-                        {item.time}
+                        {mr ? (item.time === "Morning" ? "सकाळ" : "संध्याकाळ") : item.time}
                       </span>
                     </td>
                     <td className="py-3 px-3 font-semibold text-slate-800">
@@ -677,14 +683,14 @@ export default function SprayMasterPage() {
                       <button
                         onClick={() => handleEditClick(item)}
                         className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg"
-                        title="Edit master schedule day"
+                        title={mr ? "मुख्य वेळापत्रकातील दिवस बदला" : "Edit master schedule day"}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item.id)}
                         className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
-                        title="Delete from master schedule"
+                        title={mr ? "मुख्य वेळापत्रकातून हटवा" : "Delete from master schedule"}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

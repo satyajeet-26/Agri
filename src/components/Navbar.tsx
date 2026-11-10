@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Sprout, Globe, LogOut, User, Phone } from "lucide-react";
+import { Sprout, LogOut, User, Phone } from "lucide-react";
 import { useLanguage } from "./LanguageContext";
 import { ShopProfile } from "@/types";
 
@@ -14,7 +13,6 @@ interface NavbarProps {
 
 export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
   const { lang, setLang, t } = useLanguage();
-  const router = useRouter();
   const [shop, setShop] = useState<ShopProfile | null>(null);
 
   useEffect(() => {
@@ -94,10 +92,10 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
               <User className="w-4 h-4 text-emerald-200" />
               <div className="text-left text-xs">
                 <p className="font-semibold text-white leading-none">
-                  {userName || (userRole === "ADMIN" ? "Admin" : "Farmer")}
+                  {userName || (userRole === "ADMIN" ? t("loginAdmin") : t("loginFarmer"))}
                 </p>
                 <p className="text-[10px] text-amber-300 font-medium">
-                  {userRole === "ADMIN" ? "Krushi Kendra Admin" : "Registered Farmer"}
+                  {userRole === "ADMIN" ? t("kendraAdmin") : t("registeredFarmer")}
                 </p>
               </div>
             </div>
@@ -107,7 +105,7 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
               <a
                 href={`tel:${shop.mobile}`}
                 className="hidden lg:flex items-center space-x-1 text-xs text-emerald-200 hover:text-white bg-emerald-900/50 px-2.5 py-1 rounded-md"
-                title="Kendra Helpline"
+                title={t("kendraHelpline")}
               >
                 <Phone className="w-3.5 h-3.5 text-amber-400" />
                 <span>{shop.mobile}</span>

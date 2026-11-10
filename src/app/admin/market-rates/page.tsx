@@ -21,11 +21,10 @@ interface RateForm {
   cropVariety: string;
   state: string;
   district: string;
-  marketName: string;
+  rateUnit: "KG" | "TON";
   minimumPrice: string;
   maximumPrice: string;
   modalPrice: string;
-  arrivalQuantity: string;
   rateDate: string;
   adminNotes: string;
 }
@@ -35,11 +34,10 @@ const emptyForm = (rateDate: string): RateForm => ({
   cropVariety: "",
   state: "",
   district: "",
-  marketName: "",
+  rateUnit: "KG",
   minimumPrice: "",
   maximumPrice: "",
   modalPrice: "",
-  arrivalQuantity: "",
   rateDate,
   adminNotes: "",
 });
@@ -58,7 +56,6 @@ export default function AdminMarketRatesPage() {
   const [states, setStates] = useState<StateMaster[]>([]);
   const [districts, setDistricts] = useState<DistrictMaster[]>([]);
   const [crops, setCrops] = useState<string[]>([]);
-  const [markets, setMarkets] = useState<string[]>([]);
   const [varieties, setVarieties] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,7 +83,6 @@ export default function AdminMarketRatesPage() {
       setStates(result.states || []);
       setDistricts(result.districts || []);
       setCrops(result.crops || []);
-      setMarkets(result.markets || []);
       setVarieties(result.varieties || []);
     } catch (loadError: unknown) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load market rates.");
@@ -107,7 +103,7 @@ export default function AdminMarketRatesPage() {
   const pendingToday = rates.filter(
     (rate) => rate.rateDate === today && rate.status === "DRAFT"
   ).length;
-  const marketsToday = new Set(publishedToday.map((rate) => rate.marketName.toLowerCase())).size;
+  const districtsToday = new Set(publishedToday.map((rate) => rate.district.toLowerCase())).size;
 
   const visibleRates = useMemo(
     () =>
@@ -134,11 +130,10 @@ export default function AdminMarketRatesPage() {
       cropVariety: rate.cropVariety,
       state: rate.state,
       district: rate.district,
-      marketName: rate.marketName,
+      rateUnit: rate.rateUnit,
       minimumPrice: String(rate.minimumPrice),
       maximumPrice: String(rate.maximumPrice),
       modalPrice: String(rate.modalPrice),
-      arrivalQuantity: rate.arrivalQuantity === null ? "" : String(rate.arrivalQuantity),
       rateDate: rate.rateDate,
       adminNotes: rate.adminNotes || "",
     });
@@ -159,7 +154,9 @@ export default function AdminMarketRatesPage() {
       minimumPrice: Number(form.minimumPrice),
       maximumPrice: Number(form.maximumPrice),
       modalPrice: Number(form.modalPrice),
-      arrivalQuantity: form.arrivalQuantity === "" ? null : Number(form.arrivalQuantity),
+      marketName: editingRate?.marketName || "",
+      rateUnit: form.rateUnit,
+      arrivalQuantity: editingRate?.arrivalQuantity ?? null,
       status,
     };
 
@@ -194,7 +191,7 @@ export default function AdminMarketRatesPage() {
   };
 
   const deleteDraft = async (rate: MarketRate) => {
-    if (!window.confirm(`Delete the draft for ${rate.cropName} at ${rate.marketName}?`)) return;
+    if (!window.confirm(`Delete the draft for ${rate.cropName}?`)) return;
     setError("");
     setNotice("");
     try {
@@ -247,7 +244,7 @@ export default function AdminMarketRatesPage() {
           { label: mr ? "आजचे प्रकाशित दर" : "Today's Published Rates", value: publishedToday.length, icon: CheckCircle2, color: "emerald" },
           { label: mr ? "आज अपडेट केलेली पिके" : "Crops Updated Today", value: cropCountToday, icon: BarChart3, color: "sky" },
           { label: mr ? "प्रलंबित दर" : "Pending Rates", value: pendingToday, icon: Clock3, color: "amber" },
-          { label: mr ? "बाजारांची संख्या" : "Markets Covered", value: marketsToday, icon: Store, color: "violet" },
+          { label: mr ? "जिल्ह्यांची संख्या" : "Districts Covered", value: districtsToday, icon: Store, color: "violet" },
         ].map((item) => {
           const Icon = item.icon;
           return (
@@ -308,11 +305,11 @@ export default function AdminMarketRatesPage() {
                   </div>
                   <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
                     <MapPin className="h-3.5 w-3.5" />
-                    {rate.marketName}, {rate.district}, {rate.state} · {formatScheduleDate(rate.rateDate, "en")}
+                    {rate.marketName ? `${rate.marketName}, ` : ""}{rate.district}, {rate.state} · {formatScheduleDate(rate.rateDate, "en")}
                   </p>
                   <p className="mt-1 text-sm font-bold text-slate-800">
-                    ₹{rate.minimumPrice.toLocaleString("en-IN")} – ₹{rate.maximumPrice.toLocaleString("en-IN")}
-                    <span className="ml-2 text-emerald-800">{mr ? "मोडल" : "Modal"} ₹{rate.modalPrice.toLocaleString("en-IN")}</span>
+                    ₹{rate.minimumPrice.toLocaleString("en-IN")} – ₹{rate.maximumPrice.toLocaleString("en-IN")} / {rate.rateUnit === "TON" ? mr ? "टन" : "ton" : mr ? "किलो" : "kg"}
+                    <span className="ml-2 text-emerald-800">{mr ? "मोडल" : "Modal"} ₹{rate.modalPrice.toLocaleString("en-IN")} / {rate.rateUnit === "TON" ? mr ? "टन" : "ton" : mr ? "किलो" : "kg"}</span>
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -411,14 +408,21 @@ export default function AdminMarketRatesPage() {
                   </datalist>
                 </label>
                 <label className="space-y-1 text-xs font-bold text-slate-700">
-                  {mr ? "एपीएमसी बाजार" : "APMC Market"} *
-                  <input required list="market-options" value={form.marketName} onChange={(event) => updateForm("marketName", event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal" placeholder={mr ? "बाजार निवडा किंवा लिहा" : "Select or enter market"} />
-                  <datalist id="market-options">{markets.map((market) => <option key={market} value={market} />)}</datalist>
+                  {mr ? "दराचे एकक" : "Price Unit"} *
+                  <select
+                    required
+                    value={form.rateUnit}
+                    onChange={(event) => updateForm("rateUnit", event.target.value)}
+                    className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal"
+                  >
+                    <option value="KG">{mr ? "किलो (kg)" : "Kilogram (kg)"}</option>
+                    <option value="TON">{mr ? "टन (tonne)" : "Tonne (ton)"}</option>
+                  </select>
                 </label>
                 {[
-                  ["minimumPrice", `${mr ? "किमान दर" : "Minimum Price"} (₹ / ${mr ? "क्विंटल" : "Quintal"}) *`],
-                  ["maximumPrice", `${mr ? "कमाल दर" : "Maximum Price"} (₹ / ${mr ? "क्विंटल" : "Quintal"}) *`],
-                  ["modalPrice", `${mr ? "मोडल दर" : "Modal Price"} (₹ / ${mr ? "क्विंटल" : "Quintal"}) *`],
+                  ["minimumPrice", `${mr ? "किमान दर" : "Minimum Price"} (₹ / ${form.rateUnit === "TON" ? mr ? "टन" : "ton" : "kg"}) *`],
+                  ["maximumPrice", `${mr ? "कमाल दर" : "Maximum Price"} (₹ / ${form.rateUnit === "TON" ? mr ? "टन" : "ton" : "kg"}) *`],
+                  ["modalPrice", `${mr ? "मोडल दर" : "Modal Price"} (₹ / ${form.rateUnit === "TON" ? mr ? "टन" : "ton" : "kg"}) *`],
                 ].map(([field, label]) => (
                   <label key={field} className="space-y-1 text-xs font-bold text-slate-700">
                     {label}
@@ -434,10 +438,6 @@ export default function AdminMarketRatesPage() {
                     />
                   </label>
                 ))}
-                <label className="space-y-1 text-xs font-bold text-slate-700">
-                  {mr ? "आवक (ऐच्छिक)" : "Arrival Quantity (optional)"}
-                  <input type="number" min="0" max="1000000000" step="0.01" value={form.arrivalQuantity} onChange={(event) => updateForm("arrivalQuantity", event.target.value)} className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal" placeholder={mr ? "क्विंटलमध्ये प्रमाण" : "Quantity in quintals"} />
-                </label>
                 <label className="space-y-1 text-xs font-bold text-slate-700 sm:col-span-2">
                   {mr ? "प्रशासकाची नोंद (ऐच्छिक)" : "Admin Notes (optional)"}
                   <textarea rows={2} maxLength={2000} value={form.adminNotes} onChange={(event) => updateForm("adminNotes", event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal" />

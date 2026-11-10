@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Sprout, User, Lock, ArrowRight, ShieldCheck, Phone } from "lucide-react";
+import { User, Lock, ArrowRight } from "lucide-react";
 import { ShopProfile } from "@/types";
+import { useLanguage } from "@/components/LanguageContext";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { lang, setLang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"farmer" | "admin">("farmer");
   const [username, setUsername] = useState("ramesh");
   const [password, setPassword] = useState("");
@@ -77,7 +77,7 @@ export default function LoginPage() {
         );
       }
     } catch {
-      setError("Network error while logging in");
+      setError(t("loginError"));
     } finally {
       setLoading(false);
     }
@@ -86,6 +86,30 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-green-950 flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
+        <div className="flex justify-end">
+          <div className="flex items-center rounded-lg border border-emerald-700 bg-emerald-900/80 p-0.5">
+            <button
+              type="button"
+              onClick={() => setLang("en")}
+              aria-pressed={lang === "en"}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                lang === "en" ? "bg-amber-400 text-emerald-950" : "text-emerald-200"
+              }`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang("mr")}
+              aria-pressed={lang === "mr"}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                lang === "mr" ? "bg-amber-400 text-emerald-950" : "text-emerald-200"
+              }`}
+            >
+              मराठी
+            </button>
+          </div>
+        </div>
         {/* Brand & Krushi Seva Kendra Logo */}
         <div className="text-center space-y-2">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-emerald-400 flex items-center justify-center mx-auto shadow-xl text-3xl">
@@ -95,7 +119,7 @@ export default function LoginPage() {
             {shop?.name || "Shree Krushi Seva Kendra"}
           </h1>
           <p className="text-xs sm:text-sm text-emerald-200 font-medium">
-            {shop?.tagline || "Agriculture Consultancy & Crop Advisory System"}
+            {shop?.tagline || (lang === "mr" ? "कृषी सल्लागार व पीक मार्गदर्शन प्रणाली" : "Agriculture Consultancy & Crop Advisory System")}
           </p>
         </div>
 
@@ -112,7 +136,7 @@ export default function LoginPage() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              👨‍🌾 Farmer Login (शेतकरी)
+              👨‍🌾 {t("loginFarmer")}
             </button>
             <button
               type="button"
@@ -123,7 +147,7 @@ export default function LoginPage() {
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              🏢 Admin (केंद्र चालक)
+              🏢 {t("loginAdmin")}
             </button>
           </div>
 
@@ -137,9 +161,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                {activeTab === "farmer"
-                  ? "Username or Mobile (युझरनेम किंवा मोबाईल)"
-                  : "Admin Email ID"}
+                {activeTab === "farmer" ? t("usernameOrMobile") : t("adminEmail")}
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -156,7 +178,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Password (पासवर्ड)
+                {lang === "mr" ? "पासवर्ड" : "Password"}
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -181,7 +203,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <span>
-                    {activeTab === "farmer" ? "Sign In to Farmer Panel" : "Login to Admin Dashboard"}
+                    {activeTab === "farmer" ? t("signInFarmer") : t("signInAdmin")}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
@@ -194,7 +216,7 @@ export default function LoginPage() {
         {/* Footer info */}
         <div className="text-center text-xs text-emerald-300 space-y-1">
           {shop?.address && <p>{shop.address}</p>}
-          <p>© 2026 {shop?.name || "Krushi Seva Kendra"}. All Rights Reserved.</p>
+          <p>© 2026 {shop?.name || t("appName")}. {t("allRightsReserved")}</p>
         </div>
       </div>
     </div>

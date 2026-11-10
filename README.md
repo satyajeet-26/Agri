@@ -104,8 +104,8 @@ Schedule completion is surfaced in the farmer panel and admin dashboard. WhatsAp
 - Weather requests are authenticated and proxied through the server. Forecasts are approximate; farmers should check field conditions before spraying or irrigating.
 
 ### 14. 📈 Daily Market Rates
-- Admins manually save crop, variety, APMC market, date, minimum/maximum/modal prices, arrival quantity, and notes. Rates can be saved as private drafts or published to all farmers; published records are retained for history and can be corrected.
-- Farmers can view only published rates, filter by crop/district/market/date, compare historical daily rates, and view crop-wise modal price trends. Today's rates are never substituted with an older date.
+- Admins manually save crop, variety, state, district, date, price unit (kg or tonne), minimum/maximum/modal prices, and notes. Rates can be saved as private drafts or published to all farmers; published records are retained for history and can be corrected.
+- Farmers can view only published rates, filter by crop/district/date (and by market for older records that include one), compare historical daily rates, and view crop-wise modal price trends. Today's rates are never substituted with an older date.
 - Publishing a rate adds an update to the Farmer Panel notifications. Admin APIs are protected by the existing Admin session; farmer rate reads require that farmer's authenticated session.
 
 ---

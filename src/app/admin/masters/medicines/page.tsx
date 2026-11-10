@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   MedicineCompany,
   MedicineCategory,
@@ -24,6 +25,8 @@ import {
 } from "@/types";
 
 export default function MedicineMasterPage() {
+  const { lang } = useLanguage();
+  const tr = (en: string, mr: string) => (lang === "mr" ? mr : en);
   const [activeTab, setActiveTab] = useState<
     "companies" | "categories" | "medicines" | "fertilizers"
   >("medicines");
@@ -138,7 +141,7 @@ export default function MedicineMasterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section: "companies", data: updated }),
     });
-    showNotification("success", "Company added successfully!");
+    showNotification("success", tr("Company added successfully!", "कंपनी यशस्वीरित्या जोडली!"));
   };
 
   const handleDeleteCompany = async (id: string) => {
@@ -166,7 +169,7 @@ export default function MedicineMasterPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ section: "categories", data: updated }),
     });
-    showNotification("success", "Category added successfully!");
+    showNotification("success", tr("Category added successfully!", "वर्ग यशस्वीरित्या जोडला!"));
   };
 
   const handleDeleteCategory = async (id: string) => {
@@ -225,7 +228,7 @@ export default function MedicineMasterPage() {
       body: JSON.stringify({ section: "medicines", data: updated }),
     });
 
-    showNotification("success", editingMedId ? "Medicine updated!" : "Medicine added!");
+    showNotification("success", editingMedId ? tr("Medicine updated!", "औषध अद्ययावत केले!") : tr("Medicine added!", "औषध जोडले!"));
   };
 
   const handleEditMedClick = (med: Medicine) => {
@@ -288,7 +291,7 @@ export default function MedicineMasterPage() {
       body: JSON.stringify({ section: "fertilizers", data: updated }),
     });
 
-    showNotification("success", editingFertId ? "Fertilizer updated!" : "Fertilizer added!");
+    showNotification("success", editingFertId ? tr("Fertilizer updated!", "खत अद्ययावत केले!") : tr("Fertilizer added!", "खत जोडले!"));
   };
 
   const handleDeleteFertilizer = async (id: string) => {
@@ -327,10 +330,13 @@ export default function MedicineMasterPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            2. Medicine & Fertilizer Master
+            {tr("2. Medicine & Fertilizer Master", "२. औषध आणि खत मास्टर")}
           </h1>
           <p className="text-xs text-slate-500">
-            Manage chemical/organic medicines, manufacturing companies, categories, and fertilizers
+            {tr(
+              "Manage chemical/organic medicines, manufacturing companies, categories, and fertilizers",
+              "रासायनिक/सेंद्रिय औषधे, उत्पादक कंपन्या, वर्ग आणि खते व्यवस्थापित करा"
+            )}
           </p>
         </div>
 
@@ -363,7 +369,7 @@ export default function MedicineMasterPage() {
           }`}
         >
           <Pill className="w-4 h-4" />
-          <span>C. Medicine Master ({medicines.length})</span>
+          <span>{tr("C. Medicine Master", "क. औषध मास्टर")} ({medicines.length})</span>
         </button>
 
         <button
@@ -375,7 +381,7 @@ export default function MedicineMasterPage() {
           }`}
         >
           <Wheat className="w-4 h-4" />
-          <span>D. Fertilizer Master ({fertilizers.length})</span>
+          <span>{tr("D. Fertilizer Master", "ड. खत मास्टर")} ({fertilizers.length})</span>
         </button>
 
         <button
@@ -387,7 +393,7 @@ export default function MedicineMasterPage() {
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>A. Medicine Company ({companies.length})</span>
+          <span>{tr("A. Medicine Company", "अ. औषध कंपनी")} ({companies.length})</span>
         </button>
 
         <button
@@ -399,7 +405,7 @@ export default function MedicineMasterPage() {
           }`}
         >
           <Tag className="w-4 h-4" />
-          <span>B. Categories ({categories.length})</span>
+          <span>{tr("B. Categories", "ब. वर्ग")} ({categories.length})</span>
         </button>
       </div>
 
@@ -414,7 +420,7 @@ export default function MedicineMasterPage() {
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h2 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
                 <Pill className="w-4 h-4 text-emerald-700" />
-                <span>{editingMedId ? "Edit Medicine" : "Add New Medicine"}</span>
+                <span>{editingMedId ? tr("Edit Medicine", "औषध संपादित करा") : tr("Add New Medicine", "नवीन औषध जोडा")}</span>
               </h2>
               {editingMedId && (
                 <button
@@ -432,7 +438,7 @@ export default function MedicineMasterPage() {
                   }}
                   className="text-xs text-slate-500 hover:underline"
                 >
-                  Cancel Edit
+                  {tr("Cancel Edit", "संपादन रद्द करा")}
                 </button>
               )}
             </div>
@@ -440,7 +446,7 @@ export default function MedicineMasterPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Medicine Name *
+                  {tr("Medicine Name *", "औषधाचे नाव *")}
                 </label>
                 <input
                   type="text"
@@ -454,7 +460,7 @@ export default function MedicineMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Technical Content
+                  {tr("Technical Content", "तांत्रिक घटक")}
                 </label>
                 <input
                   type="text"
@@ -469,7 +475,7 @@ export default function MedicineMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Medicine Type *
+                  {tr("Medicine Type *", "औषधाचा प्रकार *")}
                 </label>
                 <select
                   value={medForm.type}
@@ -478,15 +484,15 @@ export default function MedicineMasterPage() {
                   }
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                 >
-                  <option value="Liquid">Liquid (प्रवाही)</option>
-                  <option value="Powder">Powder (पावडर)</option>
-                  <option value="Granules">Granules (दाणेदार)</option>
+                  <option value="Liquid">{tr("Liquid (प्रवाही)", "प्रवाही")}</option>
+                  <option value="Powder">{tr("Powder (पावडर)", "पावडर")}</option>
+                  <option value="Granules">{tr("Granules (दाणेदार)", "दाणेदार")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Company *
+                  {tr("Company *", "कंपनी *")}
                 </label>
                 <select
                   value={medForm.companyId}
@@ -503,7 +509,7 @@ export default function MedicineMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Category *
+                  {tr("Category *", "वर्ग *")}
                 </label>
                 <select
                   value={medForm.categoryId}
@@ -522,7 +528,7 @@ export default function MedicineMasterPage() {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <div className="w-full sm:w-48">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Measurement Unit
+                  {tr("Measurement Unit", "मोजमापाचे एकक")}
                 </label>
                 <select
                   value={medForm.unitId}
@@ -542,7 +548,7 @@ export default function MedicineMasterPage() {
                 className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md"
               >
                 <Save className="w-4 h-4" />
-                <span>{editingMedId ? "Update Medicine" : "Save New Medicine"}</span>
+                <span>{editingMedId ? tr("Update Medicine", "औषध अद्ययावत करा") : tr("Save New Medicine", "नवीन औषध जतन करा")}</span>
               </button>
             </div>
           </form>
@@ -551,7 +557,7 @@ export default function MedicineMasterPage() {
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-800 text-sm">
-                Registered Medicines ({filteredMedicines.length})
+                {tr("Registered Medicines", "नोंदणीकृत औषधे")} ({filteredMedicines.length})
               </h3>
               <div className="relative w-full sm:w-64">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
@@ -559,7 +565,7 @@ export default function MedicineMasterPage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search medicine or company..."
+                  placeholder={tr("Search medicine or company...", "औषध किंवा कंपनी शोधा...")}
                   className="w-full text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
                 />
               </div>
@@ -569,13 +575,13 @@ export default function MedicineMasterPage() {
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
-                    <th className="py-2.5 px-3">Medicine Name</th>
-                    <th className="py-2.5 px-3">Technical Content</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3">Company</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3">Unit</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
+                    <th className="py-2.5 px-3">{tr("Medicine Name", "औषधाचे नाव")}</th>
+                    <th className="py-2.5 px-3">{tr("Technical Content", "तांत्रिक घटक")}</th>
+                    <th className="py-2.5 px-3">{tr("Type", "प्रकार")}</th>
+                    <th className="py-2.5 px-3">{tr("Company", "कंपनी")}</th>
+                    <th className="py-2.5 px-3">{tr("Category", "वर्ग")}</th>
+                    <th className="py-2.5 px-3">{tr("Unit", "एकक")}</th>
+                    <th className="py-2.5 px-3 text-right">{tr("Actions", "कृती")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -604,12 +610,16 @@ export default function MedicineMasterPage() {
                       <td className="py-3 px-3 text-right space-x-1">
                         <button
                           onClick={() => handleEditMedClick(m)}
+                          title={tr("Edit medicine", "औषध संपादित करा")}
+                          aria-label={tr("Edit medicine", "औषध संपादित करा")}
                           className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-lg"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteMedicine(m.id)}
+                          title={tr("Delete medicine", "औषध हटवा")}
+                          aria-label={tr("Delete medicine", "औषध हटवा")}
                           className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -635,14 +645,14 @@ export default function MedicineMasterPage() {
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h2 className="text-sm font-bold text-slate-800 flex items-center space-x-2">
                 <Wheat className="w-4 h-4 text-emerald-700" />
-                <span>{editingFertId ? "Edit Fertilizer" : "Add Fertilizer"}</span>
+                <span>{editingFertId ? tr("Edit Fertilizer", "खत संपादित करा") : tr("Add Fertilizer", "खत जोडा")}</span>
               </h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Fertilizer Name (e.g. 10:26:26, DAP, 12:61:00) *
+                  {tr("Fertilizer Name (e.g. 10:26:26, DAP, 12:61:00) *", "खताचे नाव (उदा. 10:26:26, DAP, 12:61:00) *")}
                 </label>
                 <input
                   type="text"
@@ -656,7 +666,7 @@ export default function MedicineMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Company / Brand
+                  {tr("Company / Brand", "कंपनी / ब्रँड")}
                 </label>
                 <input
                   type="text"
@@ -669,43 +679,43 @@ export default function MedicineMasterPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Fertilizer Type
+                  {tr("Fertilizer Type", "खताचा प्रकार")}
                 </label>
                 <select
                   value={fertForm.type}
                   onChange={(e: any) => setFertForm({ ...fertForm, type: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                 >
-                  <option value="Water Soluble">Water Soluble (ठिबक खते)</option>
-                  <option value="Granular">Granular (दाणेदार खते)</option>
-                  <option value="Liquid">Liquid Fertilizer (प्रवाही खत)</option>
-                  <option value="Organic">Organic (सेंद्रिय खत)</option>
+                  <option value="Water Soluble">{tr("Water Soluble (ठिबक खते)", "पाण्यात विरघळणारे")}</option>
+                  <option value="Granular">{tr("Granular (दाणेदार खते)", "दाणेदार खत")}</option>
+                  <option value="Liquid">{tr("Liquid Fertilizer (प्रवाही खत)", "प्रवाही खत")}</option>
+                  <option value="Organic">{tr("Organic (सेंद्रिय खत)", "सेंद्रिय खत")}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Default Unit
+                  {tr("Default Unit", "मूलभूत एकक")}
                 </label>
                 <input
                   type="text"
                   value={fertForm.unit}
                   onChange={(e) => setFertForm({ ...fertForm, unit: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                  placeholder="kg or bag"
+                  placeholder={tr("kg or bag", "किलो किंवा पोते")}
                 />
               </div>
 
               <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Application Guidance / Notes
+                  {tr("Application Guidance / Notes", "वापरण्याचे मार्गदर्शन / टिपा")}
                 </label>
                 <input
                   type="text"
                   value={fertForm.notes}
                   onChange={(e) => setFertForm({ ...fertForm, notes: e.target.value })}
                   className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                  placeholder="e.g. Best for root development & basal stage"
+                  placeholder={tr("e.g. Best for root development & basal stage", "उदा. मुळांच्या वाढीसाठी आणि बेसल टप्प्यासाठी उपयुक्त")}
                 />
               </div>
 
@@ -715,7 +725,7 @@ export default function MedicineMasterPage() {
                   className="w-full inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Save Fertilizer</span>
+                  <span>{tr("Save Fertilizer", "खत जतन करा")}</span>
                 </button>
               </div>
             </div>
@@ -727,12 +737,12 @@ export default function MedicineMasterPage() {
               <table className="w-full text-left text-xs text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
-                    <th className="py-2.5 px-3">Fertilizer Name</th>
-                    <th className="py-2.5 px-3">Company</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3">Unit</th>
-                    <th className="py-2.5 px-3">Notes</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
+                    <th className="py-2.5 px-3">{tr("Fertilizer Name", "खताचे नाव")}</th>
+                    <th className="py-2.5 px-3">{tr("Company", "कंपनी")}</th>
+                    <th className="py-2.5 px-3">{tr("Type", "प्रकार")}</th>
+                    <th className="py-2.5 px-3">{tr("Unit", "एकक")}</th>
+                    <th className="py-2.5 px-3">{tr("Notes", "टिपा")}</th>
+                    <th className="py-2.5 px-3 text-right">{tr("Actions", "कृती")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -750,6 +760,8 @@ export default function MedicineMasterPage() {
                       <td className="py-3 px-3 text-right">
                         <button
                           onClick={() => handleDeleteFertilizer(f.id)}
+                          title={tr("Delete fertilizer", "खत हटवा")}
+                          aria-label={tr("Delete fertilizer", "खत हटवा")}
                           className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -772,14 +784,14 @@ export default function MedicineMasterPage() {
               type="text"
               value={newCompany}
               onChange={(e) => setNewCompany(e.target.value)}
-              placeholder="Company Name (e.g. Syngenta, Bayer, UPL, Dhanuka, FMC)"
+              placeholder={tr("Company Name (e.g. Syngenta, Bayer, UPL, Dhanuka, FMC)", "कंपनीचे नाव (उदा. Syngenta, Bayer, UPL, Dhanuka, FMC)")}
               className="flex-1 text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
             />
             <button
               onClick={handleAddCompany}
               className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
             >
-              Add Company
+              {tr("Add Company", "कंपनी जोडा")}
             </button>
           </div>
 
@@ -792,6 +804,8 @@ export default function MedicineMasterPage() {
                 <span className="text-xs font-semibold text-slate-800">{c.name}</span>
                 <button
                   onClick={() => handleDeleteCompany(c.id)}
+                  title={tr("Delete company", "कंपनी हटवा")}
+                  aria-label={tr("Delete company", "कंपनी हटवा")}
                   className="text-slate-400 hover:text-red-600 p-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -810,14 +824,14 @@ export default function MedicineMasterPage() {
               type="text"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Category Name (e.g. Fungicide, Bactericides, Organic Insecticides, etc.)"
+              placeholder={tr("Category Name (e.g. Fungicide, Bactericides, Organic Insecticides, etc.)", "वर्गाचे नाव (उदा. बुरशीनाशक, जीवाणूनाशक, सेंद्रिय कीटकनाशक इ.)")}
               className="flex-1 text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
             />
             <button
               onClick={handleAddCategory}
               className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
             >
-              Add Category
+              {tr("Add Category", "वर्ग जोडा")}
             </button>
           </div>
 
@@ -830,6 +844,8 @@ export default function MedicineMasterPage() {
                 <span className="text-xs font-semibold text-slate-800">{cat.name}</span>
                 <button
                   onClick={() => handleDeleteCategory(cat.id)}
+                  title={tr("Delete category", "वर्ग हटवा")}
+                  aria-label={tr("Delete category", "वर्ग हटवा")}
                   className="text-slate-400 hover:text-red-600 p-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

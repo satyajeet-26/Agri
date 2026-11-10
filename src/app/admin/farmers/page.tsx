@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { useLanguage } from "@/components/LanguageContext";
 import {
   Farmer,
   StateMaster,
@@ -32,6 +33,8 @@ import {
 const getTodayDateValue = () => new Date().toISOString().split("T")[0];
 
 export default function FarmerMasterPage() {
+  const { lang } = useLanguage();
+  const mr = lang === "mr";
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [states, setStates] = useState<StateMaster[]>([]);
   const [districts, setDistricts] = useState<DistrictMaster[]>([]);
@@ -104,13 +107,13 @@ export default function FarmerMasterPage() {
       const jsonSched = await resSched.json();
 
       if (!resFarmers.ok || !jsonFarmers.success) {
-        throw new Error(jsonFarmers.message || jsonFarmers.error || "Unable to load farmers.");
+        throw new Error(jsonFarmers.message || jsonFarmers.error || (mr ? "शेतकऱ्यांची माहिती लोड करता आली नाही." : "Unable to load farmers."));
       }
       if (!resGen.ok || !jsonGen.success) {
-        throw new Error(jsonGen.message || jsonGen.error || "Unable to load location details.");
+        throw new Error(jsonGen.message || jsonGen.error || (mr ? "ठिकाणाचा तपशील लोड करता आला नाही." : "Unable to load location details."));
       }
       if (!resSched.ok || !jsonSched.success) {
-        throw new Error(jsonSched.message || jsonSched.error || "Unable to load crop schedules.");
+        throw new Error(jsonSched.message || jsonSched.error || (mr ? "पिकांचे वेळापत्रक लोड करता आले नाही." : "Unable to load crop schedules."));
       }
 
       setFarmers(jsonFarmers.farmers || []);
@@ -144,7 +147,7 @@ export default function FarmerMasterPage() {
       setLoadError("");
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error ? err.message : "Unable to load farmer master.";
+        err instanceof Error ? err.message : mr ? "शेतकरी नोंद माहिती लोड करता आली नाही." : "Unable to load farmer master.";
       setLoadError(errorMessage);
       console.error("Farmer master data load failed:", err);
     } finally {
@@ -207,7 +210,7 @@ export default function FarmerMasterPage() {
     e.preventDefault();
     if (savingFarmer) return;
     if (!form.name || !form.mobile) {
-      showNotification("error", "Farmer name and mobile number are required");
+      showNotification("error", mr ? "शेतकऱ्याचे नाव आणि मोबाइल क्रमांक आवश्यक आहे." : "Farmer name and mobile number are required");
       return;
     }
 
@@ -224,7 +227,7 @@ export default function FarmerMasterPage() {
         setShowAddModal(false);
         showNotification(
           "success",
-          `Farmer and plots saved. Login username: ${json.farmer.username}`
+          mr ? `शेतकरी व शेतजमिनी जतन केल्या. लॉगिन वापरकर्तानाव: ${json.farmer.username}` : `Farmer and plots saved. Login username: ${json.farmer.username}`
         );
         // Reset form
         setForm({
@@ -264,13 +267,13 @@ export default function FarmerMasterPage() {
       } else {
         showNotification(
           "error",
-          json.message || json.error || `Failed to add farmer (HTTP ${res.status})`
+          json.message || json.error || (mr ? `शेतकरी जोडता आला नाही (HTTP ${res.status})` : `Failed to add farmer (HTTP ${res.status})`)
         );
       }
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Network error while saving farmer."
+        error instanceof Error ? error.message : mr ? "शेतकरी जतन करताना नेटवर्क त्रुटी आली." : "Network error while saving farmer."
       );
     } finally {
       setSavingFarmer(false);
@@ -279,7 +282,7 @@ export default function FarmerMasterPage() {
 
   const handleDeleteFarmer = async (farmerId: string) => {
     if (deletingFarmerId) return;
-    if (!confirm("Are you sure you want to delete this farmer and all their plot schedules?"))
+    if (!confirm(mr ? "हा शेतकरी आणि त्याच्या सर्व शेतजमिनींची वेळापत्रके हटवायची आहेत का?" : "Are you sure you want to delete this farmer and all their plot schedules?"))
       return;
     setDeletingFarmerId(farmerId);
     try {
@@ -288,14 +291,14 @@ export default function FarmerMasterPage() {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        throw new Error(json.message || json.error || `Failed to delete farmer (HTTP ${res.status}).`);
+        throw new Error(json.message || json.error || (mr ? `शेतकरी हटवता आला नाही (HTTP ${res.status}).` : `Failed to delete farmer (HTTP ${res.status}).`));
       }
       setFarmers((current) => current.filter((farmer) => farmer.id !== farmerId));
-      showNotification("success", "Farmer removed successfully");
+      showNotification("success", mr ? "शेतकरी यशस्वीरित्या हटवला." : "Farmer removed successfully");
     } catch (error: unknown) {
       showNotification(
         "error",
-        error instanceof Error ? error.message : "Failed to delete farmer."
+        error instanceof Error ? error.message : mr ? "शेतकरी हटवता आला नाही." : "Failed to delete farmer."
       );
     } finally {
       setDeletingFarmerId(null);
@@ -321,6 +324,7 @@ export default function FarmerMasterPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <span className="ml-3 text-sm text-slate-600">{mr ? "शेतकऱ्यांची माहिती लोड होत आहे..." : "Loading farmers..."}</span>
       </div>
     );
   }
@@ -338,7 +342,7 @@ export default function FarmerMasterPage() {
             }}
             className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold"
           >
-            Retry
+            {mr ? "पुन्हा प्रयत्न करा" : "Retry"}
           </button>
         </div>
       )}
@@ -363,10 +367,12 @@ export default function FarmerMasterPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-800 tracking-tight">
-            5. Farmer Master & Plots
+            {mr ? "५. शेतकरी नोंद व शेतजमिनी" : "5. Farmer Master & Plots"}
           </h1>
           <p className="text-xs text-slate-500">
-            Register new farmers, assign multiple plots, and customize individualized spray & fertilizer schedules
+            {mr
+              ? "नवीन शेतकऱ्यांची नोंदणी करा, अनेक शेतजमिनी जोडा आणि वैयक्तिक फवारणी व खतांचे वेळापत्रक तयार करा"
+              : "Register new farmers, assign multiple plots, and customize individualized spray & fertilizer schedules"}
           </p>
         </div>
 
@@ -378,7 +384,7 @@ export default function FarmerMasterPage() {
             className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all hover:scale-102"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Farmer (नवीन शेतकरी जोडा)</span>
+            <span>{mr ? "नवीन शेतकरी जोडा" : "Add New Farmer"}</span>
           </button>
         </div>
       </div>
@@ -389,7 +395,7 @@ export default function FarmerMasterPage() {
           <div className="flex items-center space-x-2">
             <Users className="w-5 h-5 text-emerald-700" />
             <h3 className="font-bold text-slate-800 text-base">
-              Registered Farmers List ({filteredFarmers.length})
+              {mr ? `नोंदणीकृत शेतकरी (${filteredFarmers.length})` : `Registered Farmers List (${filteredFarmers.length})`}
             </h3>
           </div>
 
@@ -399,7 +405,7 @@ export default function FarmerMasterPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, mobile, village, user..."
+              placeholder={mr ? "नाव, मोबाइल, गाव किंवा वापरकर्त्यानुसार शोधा..." : "Search by name, mobile, village, user..."}
               className="w-full text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
             />
           </div>
@@ -409,18 +415,24 @@ export default function FarmerMasterPage() {
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
               <tr>
-                <th className="py-2.5 px-3">Farmer Name</th>
-                <th className="py-2.5 px-3">Mobile & WhatsApp</th>
-                <th className="py-2.5 px-3">Village / Location</th>
-                <th className="py-2.5 px-3">Plots Count</th>
-                <th className="py-2.5 px-3">Total Consultancy Area</th>
-                <th className="py-2.5 px-3">Login Username</th>
-                <th className="py-2.5 px-3">Opening Balance</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+                <th className="py-2.5 px-3">{mr ? "शेतकऱ्याचे नाव" : "Farmer Name"}</th>
+                <th className="py-2.5 px-3">{mr ? "मोबाइल व व्हॉट्सॲप" : "Mobile & WhatsApp"}</th>
+                <th className="py-2.5 px-3">{mr ? "गाव / ठिकाण" : "Village / Location"}</th>
+                <th className="py-2.5 px-3">{mr ? "शेतजमिनींची संख्या" : "Plots Count"}</th>
+                <th className="py-2.5 px-3">{mr ? "एकूण सल्ला क्षेत्र" : "Total Consultancy Area"}</th>
+                <th className="py-2.5 px-3">{mr ? "लॉगिन वापरकर्तानाव" : "Login Username"}</th>
+                <th className="py-2.5 px-3">{mr ? "प्रारंभिक शिल्लक" : "Opening Balance"}</th>
+                <th className="py-2.5 px-3 text-right">{mr ? "कृती" : "Actions"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredFarmers.map((f) => {
+              {filteredFarmers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-500">
+                    {mr ? "कोणतेही शेतकरी आढळले नाहीत." : "No farmers found."}
+                  </td>
+                </tr>
+              ) : filteredFarmers.map((f) => {
                 const totalGuntha = (f.plots || []).reduce((sum, p) => sum + (p.totalGuntha || 0), 0);
                 const area = formatArea(totalGuntha).formatted;
 
@@ -442,7 +454,7 @@ export default function FarmerMasterPage() {
                     </td>
                     <td className="py-3 px-3">
                       <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs">
-                        {(f.plots || []).length} {(f.plots || []).length === 1 ? "Plot" : "Plots"}
+                        {(f.plots || []).length} {mr ? "शेतजमिनी" : (f.plots || []).length === 1 ? "Plot" : "Plots"}
                       </span>
                     </td>
                     <td className="py-3 px-3 font-bold text-emerald-700">
@@ -461,7 +473,7 @@ export default function FarmerMasterPage() {
                             : "text-emerald-600"
                         }`}
                       >
-                        ₹{f.openingBalance} ({f.openingBalanceType})
+                        ₹{f.openingBalance} ({mr ? f.openingBalanceType === "Debit" ? "डेबिट" : "क्रेडिट" : f.openingBalanceType})
                       </span>
                     </td>
                     <td className="py-3 px-3 text-right space-x-1.5 whitespace-nowrap">
@@ -469,10 +481,10 @@ export default function FarmerMasterPage() {
                       <Link
                         href={`/admin/farmers/${f.id}`}
                         className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors"
-                        title="View profile & customize plot schedules"
+                        title={mr ? "प्रोफाइल पहा व शेतजमिनींचे वेळापत्रक बदला" : "View profile & customize plot schedules"}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit & Customize</span>
+                        <span>{mr ? "बदला व सानुकूलित करा" : "Edit & Customize"}</span>
                       </Link>
 
                       <button
@@ -480,7 +492,7 @@ export default function FarmerMasterPage() {
                         onClick={() => handleDeleteFarmer(f.id)}
                         disabled={deletingFarmerId !== null}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title={deletingFarmerId === f.id ? "Deleting farmer" : "Delete farmer"}
+                        title={deletingFarmerId === f.id ? (mr ? "शेतकरी हटवत आहे" : "Deleting farmer") : (mr ? "शेतकरी हटवा" : "Delete farmer")}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -501,7 +513,7 @@ export default function FarmerMasterPage() {
             <div className="bg-emerald-800 text-white p-5 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Users className="w-5 h-5 text-amber-300" />
-                <h3 className="font-bold text-base">Add New Farmer & Assign Plots</h3>
+                <h3 className="font-bold text-base">{mr ? "नवीन शेतकरी जोडा व शेतजमिनी नियुक्त करा" : "Add New Farmer & Assign Plots"}</h3>
               </div>
               <button
                 type="button"
@@ -519,7 +531,7 @@ export default function FarmerMasterPage() {
               onInvalid={() =>
                 showNotification(
                   "error",
-                  "Please complete all required fields and check any highlighted values."
+                  mr ? "कृपया सर्व आवश्यक माहिती भरा आणि ठळक केलेली मूल्ये तपासा." : "Please complete all required fields and check any highlighted values."
                 )
               }
               className="p-6 space-y-6 max-h-[80vh] overflow-y-auto"
@@ -527,12 +539,12 @@ export default function FarmerMasterPage() {
               {/* 1. Personal Information */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 pb-1 border-b border-slate-200">
-                  1. Personal & Contact Information
+                  {mr ? "१. वैयक्तिक व संपर्क माहिती" : "1. Personal & Contact Information"}
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className="lg:col-span-2">
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Farmer Full Name *
+                      {mr ? "शेतकऱ्याचे पूर्ण नाव *" : "Farmer Full Name *"}
                     </label>
                     <input
                       type="text"
@@ -546,7 +558,7 @@ export default function FarmerMasterPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Registration Date
+                      {mr ? "नोंदणी दिनांक" : "Registration Date"}
                     </label>
                     <input
                       type="date"
@@ -558,7 +570,7 @@ export default function FarmerMasterPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Mobile Number *
+                      {mr ? "मोबाइल क्रमांक *" : "Mobile Number *"}
                     </label>
                     <input
                       type="tel"
@@ -578,7 +590,7 @@ export default function FarmerMasterPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      WhatsApp Number (For Schedules)
+                      {mr ? "व्हॉट्सॲप क्रमांक (वेळापत्रकांसाठी)" : "WhatsApp Number (For Schedules)"}
                     </label>
                     <input
                       type="tel"
@@ -591,7 +603,7 @@ export default function FarmerMasterPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Opening Balance Type
+                      {mr ? "प्रारंभिक शिल्लक प्रकार" : "Opening Balance Type"}
                     </label>
                     <select
                       value={form.openingBalanceType}
@@ -600,14 +612,14 @@ export default function FarmerMasterPage() {
                       }
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     >
-                      <option value="Debit">Debit (नावे / उधारी)</option>
-                      <option value="Credit">Credit (जमा / आगाऊ)</option>
+                      <option value="Debit">{mr ? "डेबिट (नावे / उधारी)" : "Debit (नावे / उधारी)"}</option>
+                      <option value="Credit">{mr ? "क्रेडिट (जमा / आगाऊ)" : "Credit (जमा / आगाऊ)"}</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Opening Balance Amount (₹)
+                      {mr ? "प्रारंभिक शिल्लक रक्कम (₹)" : "Opening Balance Amount (₹)"}
                     </label>
                     <input
                       type="number"
@@ -622,11 +634,11 @@ export default function FarmerMasterPage() {
 
               <div>
                 <h4 className="mb-3 border-b border-slate-200 pb-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
-                  2. Location Details (optional)
+                  {mr ? "२. ठिकाणाचा तपशील (ऐच्छिक)" : "2. Location Details (optional)"}
                 </h4>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <label className="text-xs font-semibold text-slate-700">
-                    State
+                    {mr ? "राज्य" : "State"}
                     <select
                       value={form.state}
                       onChange={(e) => {
@@ -645,13 +657,13 @@ export default function FarmerMasterPage() {
                       }}
                       className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      <option value="">Select State</option>
+                      <option value="">{mr ? "राज्य निवडा" : "Select State"}</option>
                       {states.map((state) => <option key={state.id} value={state.name}>{state.name}</option>)}
                     </select>
                   </label>
 
                   <label className="text-xs font-semibold text-slate-700">
-                    District
+                    {mr ? "जिल्हा" : "District"}
                     <select
                       value={form.district}
                       onChange={(e) => {
@@ -668,13 +680,13 @@ export default function FarmerMasterPage() {
                       }}
                       className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      <option value="">Select District</option>
+                      <option value="">{mr ? "जिल्हा निवडा" : "Select District"}</option>
                       {formDistricts.map((district) => <option key={district.id} value={district.name}>{district.name}</option>)}
                     </select>
                   </label>
 
                   <label className="text-xs font-semibold text-slate-700">
-                    Taluka
+                    {mr ? "तालुका" : "Taluka"}
                     <select
                       value={form.taluka}
                       onChange={(e) => {
@@ -685,19 +697,19 @@ export default function FarmerMasterPage() {
                       }}
                       className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      <option value="">Select Taluka</option>
+                      <option value="">{mr ? "तालुका निवडा" : "Select Taluka"}</option>
                       {formTalukas.map((taluka) => <option key={taluka.id} value={taluka.name}>{taluka.name}</option>)}
                     </select>
                   </label>
 
                   <label className="text-xs font-semibold text-slate-700">
-                    Village
+                    {mr ? "गाव" : "Village"}
                     <select
                       value={form.village}
                       onChange={(e) => setForm({ ...form, village: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs"
                     >
-                      <option value="">Select Village</option>
+                      <option value="">{mr ? "गाव निवडा" : "Select Village"}</option>
                       {formVillages.map((village) => <option key={village.id} value={village.name}>{village.name}</option>)}
                     </select>
                   </label>
@@ -707,32 +719,32 @@ export default function FarmerMasterPage() {
               {/* 2. Website Login Information */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 pb-1 border-b border-slate-200">
-                  3. Farmer Website Login Credentials
+                  {mr ? "३. शेतकरी वेबसाइट लॉगिन तपशील" : "3. Farmer Website Login Credentials"}
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Website Username (युझरनेम, optional)
+                      {mr ? "वेबसाइट वापरकर्तानाव (ऐच्छिक)" : "Website Username (optional)"}
                     </label>
                     <input
                       type="text"
                       value={form.username}
                       onChange={(e) => setForm({ ...form, username: e.target.value })}
-                      placeholder="Leave blank to generate automatically"
+                      placeholder={mr ? "आपोआप तयार करण्यासाठी रिक्त ठेवा" : "Leave blank to generate automatically"}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Login Password (पासवर्ड) *
+                      {mr ? "लॉगिन पासवर्ड *" : "Login Password *"}
                     </label>
                     <input
                       type="password"
                       required
                       value={form.password}
                       onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="Set login password"
+                      placeholder={mr ? "लॉगिन पासवर्ड सेट करा" : "Set login password"}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono"
                     />
                   </div>
@@ -743,7 +755,7 @@ export default function FarmerMasterPage() {
               <div>
                 <div className="flex items-center justify-between mb-3 pb-1 border-b border-slate-200">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                    4. Farmer Plot Details (एकापेक्षा जास्त शेतजमीन)
+                    {mr ? "४. शेतजमिनींचा तपशील" : "4. Farmer Plot Details (एकापेक्षा जास्त शेतजमीन)"}
                   </h4>
                   <button
                     type="button"
@@ -751,7 +763,7 @@ export default function FarmerMasterPage() {
                     className="inline-flex items-center space-x-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add Another Plot</span>
+                    <span>{mr ? "+ आणखी शेतजमीन जोडा" : "+ Add Another Plot"}</span>
                   </button>
                 </div>
 
@@ -763,7 +775,7 @@ export default function FarmerMasterPage() {
                     >
                       <div className="w-full md:w-36">
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Plot Name / No.
+                          {mr ? "शेतजमिनीचे नाव / क्रमांक" : "Plot Name / No."}
                         </label>
                         <input
                           type="text"
@@ -776,7 +788,7 @@ export default function FarmerMasterPage() {
 
                       <div className="w-full md:w-40">
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Crop Name *
+                          {mr ? "पिकाचे नाव *" : "Crop Name *"}
                         </label>
                         <select
                           value={plot.cropName}
@@ -791,7 +803,7 @@ export default function FarmerMasterPage() {
 
                       <div className="w-full md:w-36">
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Sowing / Plantation Date
+                          {mr ? "पेरणी / लागवड दिनांक" : "Sowing / Plantation Date"}
                         </label>
                         <input
                           type="date"
@@ -803,7 +815,7 @@ export default function FarmerMasterPage() {
 
                       <div className="w-full md:w-28">
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Acre (एकर)
+                          {mr ? "एकर" : "Acre (एकर)"}
                         </label>
                         <input
                           type="number"
@@ -818,7 +830,7 @@ export default function FarmerMasterPage() {
 
                       <div className="w-full md:w-28">
                         <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Guntha (गुंठा)
+                          {mr ? "गुंठा" : "Guntha (गुंठा)"}
                         </label>
                         <input
                           type="number"
@@ -837,7 +849,7 @@ export default function FarmerMasterPage() {
                           type="button"
                           onClick={() => handleRemovePlotRow(idx)}
                           className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg mb-0.5"
-                          title="Remove plot"
+                          title={mr ? "शेतजमीन काढून टाका" : "Remove plot"}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -855,14 +867,14 @@ export default function FarmerMasterPage() {
                   disabled={savingFarmer}
                   className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
-                  Cancel
+                  {mr ? "रद्द करा" : "Cancel"}
                 </button>
                 <button
                   type="submit"
                   disabled={savingFarmer}
                   className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 text-white text-xs font-bold shadow-md"
                 >
-                  {savingFarmer ? "Saving..." : "Save & Register Farmer"}
+                  {savingFarmer ? (mr ? "जतन करत आहे..." : "Saving...") : (mr ? "जतन करा व शेतकऱ्याची नोंदणी करा" : "Save & Register Farmer")}
                 </button>
               </div>
             </form>
