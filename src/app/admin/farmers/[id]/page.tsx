@@ -50,9 +50,16 @@ import {
   ScheduleProgress,
   ScheduleExtensionHistory,
   PlotScheduleTimeline as PlotScheduleTimelineData,
+  FarmDiaryEntry,
   ShopProfile,
   MasterCropSchedule,
 } from "@/types";
+
+const formatRupees = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2,
+});
 
 export default function FarmerDetailsPage() {
   const params = useParams();
@@ -66,6 +73,7 @@ export default function FarmerDetailsPage() {
   const [crops, setCrops] = useState<string[]>([]);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
   const [scheduleHistory, setScheduleHistory] = useState<ScheduleExtensionHistory[]>([]);
+  const [farmDiaryEntries, setFarmDiaryEntries] = useState<FarmDiaryEntry[]>([]);
   const [masterSchedules, setMasterSchedules] = useState<Record<string, MasterCropSchedule>>({});
   const [plotTimeline, setPlotTimeline] = useState<PlotScheduleTimelineData | null>(null);
   const [plotTimelineLoading, setPlotTimelineLoading] = useState(false);
@@ -160,16 +168,17 @@ export default function FarmerDetailsPage() {
 
   const loadData = async () => {
     try {
-      const [resFarmer, resGen, resMed, resSched, resRelease] = await Promise.all([
+      const [resFarmer, resGen, resMed, resSched, resRelease, resDiary] = await Promise.all([
         fetchWithTimeout(`/api/farmers/${encodeURIComponent(id)}`),
         fetchWithTimeout("/api/masters/general"),
         fetchWithTimeout("/api/masters/medicines"),
         fetchWithTimeout("/api/schedules/master"),
         fetchWithTimeout("/api/schedules/release"),
+        fetchWithTimeout(`/api/farmers/${encodeURIComponent(id)}/diary`),
       ]);
 
       if (
-        [resFarmer, resGen, resMed, resSched, resRelease].some(
+        [resFarmer, resGen, resMed, resSched, resRelease, resDiary].some(
           (response) => response.status === 401
         )
       ) {
@@ -184,12 +193,17 @@ export default function FarmerDetailsPage() {
       const jsonMed = await resMed.json();
       const jsonSched = await resSched.json();
       const jsonRelease = await resRelease.json();
+      const jsonDiary = await resDiary.json();
 
       if (!resFarmer.ok || !jsonFarmer.success || !jsonFarmer.farmer) {
         throw new Error(jsonFarmer.message || jsonFarmer.error || "Unable to load farmer details.");
       }
       setFarmer(jsonFarmer.farmer);
       setScheduleProgress(jsonFarmer.scheduleProgress || []);
+      if (!resDiary.ok || !jsonDiary.success || !Array.isArray(jsonDiary.entries)) {
+        throw new Error(jsonDiary.message || "Unable to load farmer diary records.");
+      }
+      setFarmDiaryEntries(jsonDiary.entries);
       if (jsonFarmer.farmer.plots.length > 0 && !selectedPlotId) {
         const requestedPlotId = new URLSearchParams(window.location.search).get("plotId");
         const requestedPlot = jsonFarmer.farmer.plots.find(
@@ -1045,6 +1059,65 @@ export default function FarmerDetailsPage() {
           </div>
         </div>
       </div>
+
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900">Farm Diary Records</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Read-only activity and expense history recorded by this farmer.
+            </p>
+          </div>
+          <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs">
+            <span className="text-emerald-800">Entries: </span>
+            <strong className="text-emerald-950">{farmDiaryEntries.length}</strong>
+            <span className="mx-2 text-emerald-300">·</span>
+            <span className="text-emerald-800">Total: </span>
+            <strong className="text-emerald-950">
+              {formatRupees.format(
+                farmDiaryEntries.reduce((sum, entry) => sum + entry.totalExpense, 0)
+              )}
+            </strong>
+          </div>
+        </div>
+        {farmDiaryEntries.length === 0 ? (
+          <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+            This farmer has not recorded any farm diary activities yet.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-xs">
+              <thead className="border-b border-slate-200 text-slate-500">
+                <tr>
+                  <th className="px-2 py-2">Date</th>
+                  <th className="px-2 py-2">Plot / Crop</th>
+                  <th className="px-2 py-2">Season</th>
+                  <th className="px-2 py-2">Activity</th>
+                  <th className="px-2 py-2">Description</th>
+                  <th className="px-2 py-2 text-right">Expense</th>
+                </tr>
+              </thead>
+              <tbody>
+                {farmDiaryEntries.map((entry) => (
+                  <tr key={entry.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-2 py-2">{entry.date}</td>
+                    <td className="px-2 py-2">
+                      {farmer.plots.find((plot) => plot.id === entry.plotId)?.plotName || "Plot removed"}
+                      {" · "}{entry.cropName}
+                    </td>
+                    <td className="px-2 py-2">{entry.season}</td>
+                    <td className="px-2 py-2">{entry.activityType}</td>
+                    <td className="px-2 py-2">{entry.description}</td>
+                    <td className="px-2 py-2 text-right font-bold">
+                      {formatRupees.format(entry.totalExpense)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* 2. Plot Switcher Tabs & Add Plot Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -636,6 +636,7 @@ const INITIAL_DATABASE: DatabaseSchema = {
   ],
   scheduleProgress: [],
   scheduleExtensionHistory: [],
+  farmDiaryEntries: [],
 };
 
 const SUPABASE_TABLE = "krushi_app_state";
@@ -673,6 +674,11 @@ export function toPublicFarmer(
 }
 
 function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
+  if (data.farmDiaryEntries === undefined) {
+    data.farmDiaryEntries = [];
+  } else if (!Array.isArray(data.farmDiaryEntries)) {
+    throw new Error("Database farm diary entries are invalid.");
+  }
   if (data.scheduleProgress === undefined) {
     data.scheduleProgress = [];
   } else if (!Array.isArray(data.scheduleProgress)) {

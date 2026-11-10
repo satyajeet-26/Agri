@@ -247,6 +247,39 @@ export interface ScheduleExtensionHistory {
   createdBy: string;
 }
 
+export type FarmDiaryActivityType =
+  | "Spraying"
+  | "Fertilizer Application"
+  | "Pesticide Application"
+  | "Irrigation"
+  | "Labour"
+  | "Seeds"
+  | "Machinery"
+  | "Harvesting"
+  | "Other";
+
+export interface FarmDiaryEntry {
+  id: string;
+  farmerId: string;
+  plotId: string;
+  cropName: string;
+  date: string;
+  season: string;
+  activityType: FarmDiaryActivityType;
+  description: string;
+  productName: string;
+  quantity: number | null;
+  unit: string;
+  labourCost: number;
+  productCost: number;
+  otherExpenses: number;
+  totalExpense: number;
+  notes: string;
+  photoDataUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminUser {
   email: string;
   passwordHash: string;
@@ -269,4 +302,5 @@ export interface DatabaseSchema {
   farmers: Farmer[];
   scheduleProgress: ScheduleProgress[];
   scheduleExtensionHistory: ScheduleExtensionHistory[];
+  farmDiaryEntries: FarmDiaryEntry[];
 }

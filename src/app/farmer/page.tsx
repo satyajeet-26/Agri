@@ -13,6 +13,9 @@ import {
   ShieldCheck,
   ChevronRight,
   BellRing,
+  BookOpen,
+  CloudSun,
+  Store,
 } from "lucide-react";
 import { formatArea } from "@/lib/area";
 import {
@@ -24,7 +27,6 @@ import {
 import { useLanguage } from "@/components/LanguageContext";
 import {
   Farmer,
-  Plot,
   ScheduleProgress,
   ShopProfile,
 } from "@/types";
@@ -36,8 +38,6 @@ export default function FarmerPanelPage() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
-  const [plotCurrentDays, setPlotCurrentDays] = useState<Record<string, number>>({});
-  const [selectedPlotId, setSelectedPlotId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -106,12 +106,6 @@ export default function FarmerPanelPage() {
 
         setFarmer(farmerResult.farmer);
         setScheduleProgress(farmerResult.scheduleProgress || []);
-        setPlotCurrentDays(farmerResult.plotCurrentDays || {});
-        setSelectedPlotId((current) =>
-          farmerResult.farmer.plots.some((plot: Plot) => plot.id === current)
-            ? current
-            : farmerResult.farmer.plots[0]?.id || ""
-        );
         setLoadError("");
 
         if (generalResponse.ok && generalResult.success && generalResult.data?.shop) {
@@ -192,7 +186,7 @@ export default function FarmerPanelPage() {
       </main>
     );
   }
-  const selectedPlot = (farmer.plots || []).find((p) => p.id === selectedPlotId) || (farmer.plots || [])[0];
+  const selectedPlot = (farmer.plots || [])[0];
   const selectedProgress = scheduleProgress.find(
     (progress) =>
       progress.plotId === selectedPlot?.id &&
@@ -327,6 +321,90 @@ export default function FarmerPanelPage() {
           </div>
         </div>
 
+        <section aria-label={lang === "mr" ? "शेतकरी पर्याय" : "Farmer options"} className="space-y-3">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900">
+              {lang === "mr" ? "तुम्हाला काय पाहायचे आहे?" : "What would you like to open?"}
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {lang === "mr" ? "खालील पर्याय निवडा." : "Choose one of the options below."}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <Link
+              href="/farmer/plots"
+              className="group min-h-36 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
+                <MapPin className="h-5 w-5" />
+              </span>
+              <span className="mt-3 block text-sm font-extrabold text-slate-900">
+                1. {lang === "mr" ? "माझे प्लॉट" : "My Plots"}
+              </span>
+              <span className="mt-1 block text-xs text-slate-500">
+                {lang === "mr" ? "पिके आणि वेळापत्रक" : "Crops and schedules"}
+              </span>
+            </Link>
+
+            <Link
+              href="/farmer/diary"
+              className="group min-h-36 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                <BookOpen className="h-5 w-5" />
+              </span>
+              <span className="mt-3 block text-sm font-extrabold text-slate-900">
+                2. {lang === "mr" ? "शेती डायरी" : "Farm Diary"}
+              </span>
+              <span className="mt-1 block text-xs text-slate-500">
+                {lang === "mr" ? "शेती खर्च आणि कामाच्या नोंदी" : "Farm activities and expenses"}
+              </span>
+            </Link>
+
+            <Link
+              href="/farmer/weather"
+              className="group min-h-36 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-sky-700"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-800">
+                <CloudSun className="h-5 w-5" />
+              </span>
+              <span className="mt-3 block text-sm font-extrabold text-slate-900">
+                3. {lang === "mr" ? "हवामान" : "Weather"}
+              </span>
+              <span className="mt-1 block text-xs text-slate-500">
+                {lang === "mr" ? "स्थानिक हवामानाचा अंदाज" : "Local weather forecast"}
+              </span>
+            </Link>
+
+            <article className="min-h-36 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-800">
+                <Store className="h-5 w-5" />
+              </span>
+              <span className="mt-3 block text-sm font-extrabold text-slate-900">
+                4. {lang === "mr" ? "बाजार डायरी" : "Market Diary"}
+              </span>
+              <span className="mt-1 block text-xs font-medium text-slate-500">
+                {lang === "mr" ? "लवकरच" : "Coming soon"}
+              </span>
+            </article>
+
+            <Link
+              href="#notifications"
+              className="group min-h-36 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-amber-700"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                <BellRing className="h-5 w-5" />
+              </span>
+              <span className="mt-3 block text-sm font-extrabold text-slate-900">
+                5. {lang === "mr" ? "सूचना" : "Notifications"}
+              </span>
+              <span className="mt-1 block text-xs text-slate-500">
+                {lang === "mr" ? "वेळापत्रक अपडेट" : "Schedule updates"}
+              </span>
+            </Link>
+          </div>
+        </section>
+
         {/* Read-Only Safety Notice */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center space-x-2 text-xs text-blue-800">
           <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
@@ -337,16 +415,23 @@ export default function FarmerPanelPage() {
           </span>
         </div>
 
-        {plotScheduleNotifications.length > 0 && (
-          <section
-            aria-label={lang === "mr" ? "आजचे वेळापत्रक सूचना" : "Today's schedule notifications"}
-            className="space-y-2 rounded-2xl border border-emerald-400 bg-emerald-100 p-4 shadow-sm"
-          >
-            <h3 className="flex items-center gap-2 text-sm font-extrabold text-emerald-950">
-              <BellRing className="h-4 w-4 shrink-0" />
-              {lang === "mr" ? "आजच्या वेळापत्रकासाठी सूचना" : "Schedule notification for today"}
-            </h3>
-            {plotScheduleNotifications.map(({ plot, sprays, fertilizers }) => (
+        <section
+          id="notifications"
+          aria-label={lang === "mr" ? "आजचे वेळापत्रक सूचना" : "Today's schedule notifications"}
+          className="scroll-mt-24 space-y-2 rounded-2xl border border-emerald-400 bg-emerald-100 p-4 shadow-sm"
+        >
+          <h3 className="flex items-center gap-2 text-sm font-extrabold text-emerald-950">
+            <BellRing className="h-4 w-4 shrink-0" />
+            {lang === "mr" ? "आजच्या वेळापत्रकासाठी सूचना" : "Schedule notifications"}
+          </h3>
+          {plotScheduleNotifications.length === 0 ? (
+            <p className="rounded-xl border border-emerald-200 bg-white p-3 text-xs text-emerald-900">
+              {lang === "mr"
+                ? "सध्या कोणतीही नवीन सूचना नाही."
+                : "No new notifications right now."}
+            </p>
+          ) : (
+            plotScheduleNotifications.map(({ plot, sprays, fertilizers }) => (
               <Link
                 key={plot.id}
                 href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
@@ -371,9 +456,9 @@ export default function FarmerPanelPage() {
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-emerald-700" />
               </Link>
-            ))}
-          </section>
-        )}
+            ))
+          )}
+        </section>
 
         {selectedPlot && selectedProgress && (
           <div
@@ -408,64 +493,6 @@ export default function FarmerPanelPage() {
             )}
           </div>
         )}
-
-        <section className="space-y-3">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900">
-              {lang === "mr" ? "माझे प्लॉट" : "My Plots"}
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {lang === "mr"
-                ? "दिवसनिहाय वेळापत्रक पाहण्यासाठी प्लॉट निवडा."
-                : "Open a plot to view its day-by-day schedule."}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            {farmer.plots.map((plot) => {
-              const progress = scheduleProgress.find(
-                (entry) => entry.plotId === plot.id && entry.cropId === plot.cropName
-              );
-              const currentDay = plotCurrentDays[plot.id] || 0;
-              return (
-                <Link
-                  key={plot.id}
-                  href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
-                  className="block rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
-                >
-                  <span className="flex items-start justify-between gap-2">
-                    <span>
-                      <span className="block text-sm font-extrabold text-slate-900">{plot.plotName}</span>
-                      <span className="mt-0.5 block text-sm font-bold text-emerald-800">{plot.cropName}</span>
-                    </span>
-                    <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" />
-                  </span>
-                  <span className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "क्षेत्र" : "Area"}
-                      <strong className="mt-0.5 block text-slate-800">{formatArea(plot.totalGuntha).formatted}</strong>
-                    </span>
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "सुरुवात" : "Started"}
-                      <strong className="mt-0.5 block text-slate-800">{formatScheduleDate(plot.sowingDate, lang)}</strong>
-                    </span>
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "सध्याचा दिवस" : "Current day"}
-                      <strong className="mt-0.5 block text-slate-800">
-                        {currentDay > 0 ? `Day ${currentDay}` : "Not started"}
-                      </strong>
-                    </span>
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "जारी" : "Released"}
-                      <strong className="mt-0.5 block text-slate-800">
-                        {progress ? `Day 1–${progress.totalDaysReleased}` : "Not released"}
-                      </strong>
-                    </span>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
 
         {/* 1. TODAY'S SCHEDULE HIGHLIGHT CARD */}
         {selectedPlot && (

@@ -91,6 +91,18 @@ Admins can open a farmer's plot timeline to view or customize an individual rele
 
 Schedule completion is surfaced in the farmer panel and admin dashboard. WhatsApp remains a manual, review-before-send action; no automatic WhatsApp delivery is configured.
 
+### 12. 📔 Farmer Farm Diary
+- Farmers open the existing Farm Diary dashboard from their panel to record plot-specific activities, products, quantities, costs, notes, and optional photos.
+- Daily entries calculate total expense on the server from product, labour, and other expenses. Farmers can search, filter, sort, edit, and delete their own records.
+- Expense cards, a six-month chart, plot/crop summaries, and season-wise reports are calculated from each farmer's records. Reports can be printed or saved as PDF through the browser print dialog.
+- Farmers can attach JPG, PNG, or WebP photos up to 1 MB. Photo data is stored with diary entries in the application's existing database state (local JSON for development and Supabase JSONB for persistent deployments); it is returned only through the authenticated farmer/admin diary API.
+- Admins can view a farmer's diary history read-only from that farmer's Admin Panel profile.
+
+### 13. 🌦️ Farmer Local Weather
+- The Farmer Panel Weather card opens a five-day local forecast with current temperature, feels-like temperature, humidity, wind, and rain outlook.
+- By default, the app resolves the farmer's saved village using Open-Meteo; farmers can optionally request device location through the browser. Device coordinates are not saved.
+- Weather requests are authenticated and proxied through the server. Forecasts are approximate; farmers should check field conditions before spraying or irrigating.
+
 ---
 
 ## 🔑 Demo Login Credentials
