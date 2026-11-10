@@ -321,17 +321,6 @@ export default function FarmerPanelPage() {
               </p>
             </div>
 
-            {shop?.mobile && (
-              <a
-                href={`tel:${shop.mobile}`}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-amber-300 w-fit"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>
-                  {lang === "mr" ? "केंद्र संपर्क:" : "Helpline:"} {shop.mobile}
-                </span>
-              </a>
-            )}
           </div>
         </div>
 
