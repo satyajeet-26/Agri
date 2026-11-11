@@ -5,3 +5,9 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+@media print {
+  .farmer-print-protected {
+    display: none !important;
+  }
+}

@@ -15,13 +15,13 @@ const DB_FILE = path.join(DATA_DIR, "krushi_db.json");
 const INITIAL_DATABASE: DatabaseSchema = {
   shop: {
     id: "shop-01",
-    name: "Demo Krushi Seva Kendra",
+    name: "Bharathi Krushi Seva Kendra",
     ownerName: "Demo Owner",
     tagline: "Agriculture Consultancy & Crop Advisory Demo",
     mobile: "",
     whatsapp: "",
     email: "contact@example.test",
-    address: "Demo Address",
+    address: "A/P Saspade, Tal. Kadegaon, Dist. Sangli, Maharashtra - 415305.",
     logoUrl: "/logo.png",
   },
   admin: {

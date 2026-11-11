@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Krushi Seva Kendra - Agriculture Consultancy System",
+  title: "Bharathi Krushi Seva Kendra - Agriculture Consultancy System",
   description: "Comprehensive Agriculture Consultancy & Schedule Management System",
 };
 

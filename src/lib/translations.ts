@@ -5,7 +5,7 @@ export type Language = "en" | "mr";
 export const translations = {
   en: {
     // Branding & Navigation
-    appName: "Krushi Seva Kendra",
+    appName: "Bharathi Krushi Seva Kendra",
     consultancySystem: "Agriculture Consultancy System",
     adminDashboard: "Admin Dashboard",
     farmerPortal: "Farmer Portal",

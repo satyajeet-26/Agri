@@ -29,7 +29,7 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
   }, []);
 
   const brandLogoSrc = shop?.logoUrl || "/logo.png";
-  const brandName = shop?.name || "Shree Krushi Seva Kendra";
+  const brandName = shop?.name || "Bharathi Krushi Seva Kendra";
 
   const handleLogout = async () => {
     try {

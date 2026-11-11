@@ -120,14 +120,14 @@ export default function LoginPage() {
             ) : (
               <img
                 src={shop?.logoUrl || "/logo.png"}
-                alt={`${shop?.name || "Shree Krushi Seva Kendra"} logo`}
+                alt={`${shop?.name || "Bharathi Krushi Seva Kendra"} logo`}
                 className="w-full h-full object-cover"
                 onError={() => setLogoError(true)}
               />
             )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {shop?.name || "Shree Krushi Seva Kendra"}
+            {shop?.name || "Bharathi Krushi Seva Kendra"}
           </h1>
           <p className="text-xs sm:text-sm text-emerald-200 font-medium">
             {shop?.tagline || (lang === "mr" ? "कृषी सल्लागार व पीक मार्गदर्शन प्रणाली" : "Agriculture Consultancy & Crop Advisory System")}

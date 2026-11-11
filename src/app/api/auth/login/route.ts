@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     if (farmer && (farmer.passwordHash === password || farmer.plainPassword === password)) {
       if (!farmer.isActive) {
         const response = NextResponse.json(
-          { success: false, message: "Your account is inactive. Please contact Krushi Seva Kendra." },
+          { success: false, message: "Your account is inactive. Please contact Bharathi Krushi Seva Kendra." },
           { status: 403 }
         );
         clearAdminSessionCookie(response);

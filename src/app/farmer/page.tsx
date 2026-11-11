@@ -243,7 +243,7 @@ export default function FarmerPanelPage() {
               ) : (
                 <img
                   src={shop?.logoUrl || "/logo.png"}
-                  alt={`${shop?.name || "Krushi Seva Kendra"} logo`}
+                  alt={`${shop?.name || "Bharathi Krushi Seva Kendra"} logo`}
                   className="w-full h-full object-cover"
                   onError={() => setLogoError(true)}
                 />
@@ -251,7 +251,7 @@ export default function FarmerPanelPage() {
             </div>
             <div>
               <h1 className="font-extrabold text-sm sm:text-base leading-tight">
-                {shop?.name || "Krushi Seva Kendra"}
+                {shop?.name || "Bharathi Krushi Seva Kendra"}
               </h1>
               <p className="text-[11px] text-emerald-200">
                 {lang === "mr" ? "शेतकरी सल्लागार पॅनल" : "Farmer Consultancy Portal"}
@@ -432,7 +432,7 @@ export default function FarmerPanelPage() {
           <span>
             {lang === "mr"
               ? "हे वेळापत्रक कृषी तज्ज्ञांनी तुमच्या शेतासाठी खास तयार केले आहे. यात बदल केवळ केंद्राकडून केला जाऊ शकतो."
-              : "This schedule is personalized for your plot by your Krushi Seva Kendra expert. (Read-Only access)"}
+              : "This schedule is personalized for your plot by your Bharathi Krushi Seva Kendra expert. (Read-Only access)"}
           </span>
         </div>
 

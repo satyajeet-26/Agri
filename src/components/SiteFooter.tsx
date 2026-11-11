@@ -13,7 +13,7 @@ export function SiteFooter() {
       <p className="text-sm font-bold">
         {lang === "mr"
           ? "मदत हवी आहे? भारती कृषी सेवा केंद्राशी संपर्क साधा"
-          : "Need Help? Contact Bharati Krushi Seva Kendra"}
+          : "Need Help? Contact Bharathi Krushi Seva Kendra"}
       </p>
       <p className="mt-1 text-xs text-emerald-100">
         {lang === "mr"

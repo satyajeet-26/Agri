@@ -5,5 +5,5 @@ export default function FarmerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <div className="farmer-print-protected">{children}</div>;
 }

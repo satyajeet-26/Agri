@@ -523,7 +523,7 @@ export default function GeneralMasterPage() {
                 value={shop.name}
                 onChange={(e) => setShop({ ...shop, name: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder={mr ? "उदा. श्री कृषी सेवा केंद्र व सल्ला सेवा" : "e.g. Shree Krushi Seva Kendra & Consultancy"}
+                placeholder={mr ? "उदा. भारती कृषी सेवा केंद्र" : "e.g. Bharathi Krushi Seva Kendra"}
               />
             </div>
 

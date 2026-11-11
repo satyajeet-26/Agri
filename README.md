@@ -1,4 +1,4 @@
-# 🌾 Krushi Seva Kendra – Agriculture Consultancy Web Application
+# 🌾 Bharathi Krushi Seva Kendra – Agriculture Consultancy Web Application
 
 A full-stack, responsive web application and consultancy management system designed specifically for **Krushi Seva Kendras**, agrochemical retailers, and agricultural consultants in India.
 
