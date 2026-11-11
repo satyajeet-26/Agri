@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { randomBytes } from "crypto";
 import {
   DatabaseSchema,
   Farmer,
@@ -26,6 +27,7 @@ const INITIAL_DATABASE: DatabaseSchema = {
   admin: {
     email: "admin@krushi.com",
     passwordHash: "admin123", // In production: bcrypt hashed
+    sessionSecret: randomBytes(32).toString("hex"),
   },
   years: [
     { id: "yr-2627", yearName: "2026–27", startDate: "2026-04-01", endDate: "2027-03-31", isActive: true },
@@ -676,6 +678,9 @@ export function toPublicFarmer(
 }
 
 function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
+  if (!data.admin.sessionSecret) {
+    data.admin.sessionSecret = randomBytes(32).toString("hex");
+  }
   if (data.farmDiaryEntries === undefined) {
     data.farmDiaryEntries = [];
   } else if (!Array.isArray(data.farmDiaryEntries)) {
@@ -790,7 +795,12 @@ async function getSupabaseDatabase(
   const state = rows[0]?.state;
 
   if (state && typeof state === "object" && Array.isArray(state.farmers)) {
-    return normalizeDatabase(state);
+    const hasSessionSecret = Boolean(state.admin?.sessionSecret);
+    const normalized = normalizeDatabase(state);
+    if (!hasSessionSecret) {
+      await saveSupabaseDatabase(url, serviceRoleKey, normalized);
+    }
+    return normalized;
   }
   if (rows.length > 0) {
     throw new Error("Supabase database state is invalid.");
@@ -824,7 +834,13 @@ function getLocalDatabase(): DatabaseSchema {
       return initialDatabase;
     }
     const raw = fs.readFileSync(DB_FILE, "utf-8");
-    return normalizeDatabase(JSON.parse(raw) as DatabaseSchema);
+    const data = JSON.parse(raw) as DatabaseSchema;
+    const hasSessionSecret = Boolean(data.admin?.sessionSecret);
+    const normalized = normalizeDatabase(data);
+    if (!hasSessionSecret) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(normalized, null, 2), "utf-8");
+    }
+    return normalized;
   } catch (error) {
     console.error("Error reading database file:", error);
     throw new Error("Failed to read or update the local database.");

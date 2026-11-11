@@ -10,6 +10,7 @@ function getSigningSecret(db: DatabaseSchema): string {
     process.env.FARMER_SESSION_SECRET?.trim() ||
     process.env.ADMIN_SESSION_SECRET?.trim() ||
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    db.admin.sessionSecret ||
     db.admin.passwordHash
   );
 }

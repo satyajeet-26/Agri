@@ -164,18 +164,41 @@ export default function FarmerPlotsPage() {
               );
               const currentDay = plotCurrentDays[plot.id] || 0;
 
-              return (
-                <Link
-                  key={plot.id}
-                  href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
-                  className="block rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
-                >
+              const cardContent = (
+                <>
                   <span className="flex items-start justify-between gap-2">
                     <span>
-                      <span className="block text-sm font-extrabold text-slate-900">{plot.plotName}</span>
-                      <span className="mt-0.5 block text-sm font-bold text-emerald-800">{plot.cropName}</span>
+                      <span
+                        className={`block text-sm font-extrabold ${
+                          plot.isActive === false ? "text-rose-900" : "text-slate-900"
+                        }`}
+                      >
+                        {plot.plotName}
+                      </span>
+                      <span
+                        className={`mt-0.5 block text-sm font-bold ${
+                          plot.isActive === false ? "text-rose-700" : "text-emerald-800"
+                        }`}
+                      >
+                        {plot.cropName}
+                      </span>
                     </span>
-                    <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-emerald-700" />
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                          plot.isActive === false
+                            ? "bg-rose-100 text-rose-800 ring-1 ring-rose-200"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {plot.isActive === false
+                          ? lang === "mr" ? "निष्क्रिय" : "Inactive"
+                          : lang === "mr" ? "सक्रिय" : "Active"}
+                      </span>
+                      {plot.isActive !== false && (
+                        <ChevronRight className="h-5 w-5 text-emerald-700" />
+                      )}
+                    </span>
                   </span>
                   <span className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
                     <span className="text-slate-500">
@@ -190,23 +213,52 @@ export default function FarmerPlotsPage() {
                         {formatScheduleDate(plot.sowingDate, lang)}
                       </strong>
                     </span>
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "सध्याचा दिवस" : "Current day"}
-                      <strong className="mt-0.5 block text-slate-800">
-                        {currentDay > 0
-                          ? `${lang === "mr" ? "दिवस" : "Day"} ${currentDay}`
-                          : lang === "mr" ? "सुरू नाही" : "Not started"}
-                      </strong>
-                    </span>
-                    <span className="text-slate-500">
-                      {lang === "mr" ? "जारी वेळापत्रक" : "Released schedule"}
-                      <strong className="mt-0.5 block text-slate-800">
-                        {progress
-                          ? `Day 1–${progress.totalDaysReleased}`
-                          : lang === "mr" ? "जारी नाही" : "Not released"}
-                      </strong>
-                    </span>
+                    {plot.isActive === false ? (
+                      <span className="col-span-2 rounded-lg border border-rose-200 bg-rose-100 p-2 text-rose-900">
+                        {lang === "mr"
+                          ? "हा प्लॉट निष्क्रिय आहे. वेळापत्रक उपलब्ध नाही."
+                          : "This plot is inactive. Its schedule is unavailable."}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-slate-500">
+                          {lang === "mr" ? "सध्याचा दिवस" : "Current day"}
+                          <strong className="mt-0.5 block text-slate-800">
+                            {currentDay > 0
+                              ? `${lang === "mr" ? "दिवस" : "Day"} ${currentDay}`
+                              : lang === "mr" ? "सुरू नाही" : "Not started"}
+                          </strong>
+                        </span>
+                        <span className="text-slate-500">
+                          {lang === "mr" ? "जारी वेळापत्रक" : "Released schedule"}
+                          <strong className="mt-0.5 block text-slate-800">
+                            {progress
+                              ? `Day 1–${progress.totalDaysReleased}`
+                              : lang === "mr" ? "जारी नाही" : "Not released"}
+                          </strong>
+                        </span>
+                      </>
+                    )}
                   </span>
+                </>
+              );
+              const cardClassName = `block rounded-2xl border p-4 shadow-sm ${
+                plot.isActive === false
+                  ? "border-rose-300 bg-rose-50"
+                  : "border-slate-200 bg-white transition hover:border-emerald-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-emerald-700"
+              }`;
+
+              return plot.isActive === false ? (
+                <div key={plot.id} className={cardClassName} aria-disabled="true">
+                  {cardContent}
+                </div>
+              ) : (
+                <Link
+                  key={plot.id}
+                  href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
+                  className={cardClassName}
+                >
+                  {cardContent}
                 </Link>
               );
             })}

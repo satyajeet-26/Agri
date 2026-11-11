@@ -76,6 +76,7 @@ export default function FarmerPlotSchedulePage() {
         }
       } catch (loadError: unknown) {
         if (cancelled) return;
+        setTimeline(null);
         if (loadError instanceof Error) {
           setError(loadError.message);
         } else {
@@ -190,6 +191,17 @@ export default function FarmerPlotSchedulePage() {
                   <p className="text-sm text-emerald-100">
                     {timeline.plot.plotName} · {formatArea(timeline.plot.totalGuntha).formatted}
                   </p>
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      timeline.plot.isActive === false
+                        ? "bg-white/15 text-slate-100"
+                        : "bg-emerald-100 text-emerald-900"
+                    }`}
+                  >
+                    {timeline.plot.isActive === false
+                      ? lang === "mr" ? "निष्क्रिय प्लॉट" : "Inactive plot"
+                      : lang === "mr" ? "सक्रिय प्लॉट" : "Active plot"}
+                  </span>
                 </div>
               </div>
 

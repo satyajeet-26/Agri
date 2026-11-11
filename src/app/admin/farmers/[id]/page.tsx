@@ -263,16 +263,11 @@ export default function FarmerDetailsPage() {
   };
 
   useEffect(() => {
-    setNewPlotForm((prev) => ({
-      ...prev,
-      sowingDate: prev.sowingDate || new Date().toISOString().split("T")[0],
-    }));
     loadData();
   }, [id]);
 
   useEffect(() => {
     if (!selectedPlotId || !farmer) {
-      setPlotTimeline(null);
       return;
     }
 
@@ -302,6 +297,9 @@ export default function FarmerDetailsPage() {
       cancelled = true;
     };
   }, [farmer, id, lang, selectedPlotId, plotTimelineRefresh]);
+
+  const visiblePlotTimeline =
+    plotTimeline?.plot.id === selectedPlotId ? plotTimeline : null;
 
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -511,7 +509,7 @@ export default function FarmerDetailsPage() {
   };
 
   const handleOpenTimelineWhatsApp = (dayNumber: number) => {
-    const day = plotTimeline?.days.find((entry) => entry.day === dayNumber);
+    const day = visiblePlotTimeline?.days.find((entry) => entry.day === dayNumber);
     if (
       !day ||
       day.status !== "TODAY" ||
@@ -862,6 +860,7 @@ export default function FarmerDetailsPage() {
         {
           id: `plt-${Date.now()}`,
           plotName: newPlotForm.plotName,
+          isActive: true,
           cropName: newPlotForm.cropName,
           sowingDate: newPlotForm.sowingDate,
           areaAcre: Number(newPlotForm.areaAcre) || 0,
@@ -891,6 +890,47 @@ export default function FarmerDetailsPage() {
       showNotification(
         "error",
         error instanceof Error ? error.message : tr("Failed to add plot.", "शेतजमीन जोडता आली नाही.")
+      );
+    } finally {
+      setSavingAction(null);
+    }
+  };
+
+  const handleTogglePlotActive = async (plot: Plot) => {
+    if (!farmer || savingAction) return;
+    const nextIsActive = plot.isActive === false;
+    setSavingAction(`plot-status-${plot.id}`);
+
+    try {
+      const response = await fetchWithTimeout(`/api/farmers/${farmer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plots: farmer.plots.map((entry) =>
+            entry.id === plot.id ? { ...entry, isActive: nextIsActive } : entry
+          ),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.farmer) {
+        throw new Error(
+          result.message || result.error || tr("Unable to update plot status.", "शेतजमिनीची स्थिती अद्ययावत करता आली नाही.")
+        );
+      }
+
+      setFarmer(result.farmer);
+      showNotification(
+        "success",
+        nextIsActive
+          ? tr(`${plot.plotName} is now active.`, `${plot.plotName} आता सक्रिय आहे.`)
+          : tr(`${plot.plotName} is now inactive.`, `${plot.plotName} आता निष्क्रिय आहे.`)
+      );
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error
+          ? error.message
+          : tr("Unable to update plot status.", "शेतजमिनीची स्थिती अद्ययावत करता आली नाही.")
       );
     } finally {
       setSavingAction(null);
@@ -1150,37 +1190,73 @@ export default function FarmerDetailsPage() {
           </span>
           {farmer.plots.map((plot) => {
             const active = plot.id === selectedPlot?.id;
+            const plotIsActive = plot.isActive !== false;
             return (
-              <button
+              <div
                 key={plot.id}
-                onClick={() => {
-                  setSelectedPlotId(plot.id);
-                  setSetTotalDays("");
-                  setEditingSprayId(null);
-                  setEditingFertId(null);
-                }}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                  active
-                    ? "bg-emerald-800 text-white shadow-md shadow-emerald-900/20"
-                    : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
-                }`}
+                className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white p-1"
               >
-                <span>{plot.plotName}</span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full ${
-                    active ? "bg-amber-400 text-emerald-950 font-bold" : "bg-slate-100 text-slate-500"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlotId(plot.id);
+                    setSetTotalDays("");
+                    setEditingSprayId(null);
+                    setEditingFertId(null);
+                  }}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                    active
+                      ? "bg-emerald-800 text-white shadow-md shadow-emerald-900/20"
+                      : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
-                  {plot.cropName} • {formatArea(plot.totalGuntha).formatted}
-                </span>
-              </button>
+                  <span>{plot.plotName}</span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full ${
+                      active ? "bg-amber-400 text-emerald-950 font-bold" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {plot.cropName} • {formatArea(plot.totalGuntha).formatted}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      plotIsActive ? "text-emerald-200" : active ? "text-red-200" : "text-red-700"
+                    }`}
+                  >
+                    {plotIsActive ? tr("Active", "सक्रिय") : tr("Inactive", "निष्क्रिय")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleTogglePlotActive(plot)}
+                  disabled={savingAction !== null}
+                  aria-label={
+                    plotIsActive
+                      ? tr(`Deactivate ${plot.plotName}`, `${plot.plotName} निष्क्रिय करा`)
+                      : tr(`Activate ${plot.plotName}`, `${plot.plotName} सक्रिय करा`)
+                  }
+                  className={`rounded-lg px-2.5 py-2 text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    plotIsActive
+                      ? "bg-red-50 text-red-700 hover:bg-red-100"
+                      : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                  }`}
+                >
+                  {plotIsActive ? tr("Set inactive", "निष्क्रिय करा") : tr("Set active", "सक्रिय करा")}
+                </button>
+              </div>
             );
           })}
         </div>
 
         <button
           type="button"
-          onClick={() => setShowAddPlotModal(true)}
+          onClick={() => {
+            setNewPlotForm((current) => ({
+              ...current,
+              sowingDate: current.sowingDate || new Date().toISOString().split("T")[0],
+            }));
+            setShowAddPlotModal(true);
+          }}
           disabled={savingAction !== null}
           className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-sm shrink-0"
         >
@@ -1338,37 +1414,37 @@ export default function FarmerDetailsPage() {
               <h3 className="font-bold text-slate-900">{tr("Day-by-Day Plot Schedule", "दिवसानुसार शेतजमिनीचे वेळापत्रक")}</h3>
               <p className="mt-1 text-xs text-slate-500">
                 {selectedPlot.plotName} · {selectedPlot.cropName}
-                {plotTimeline?.progress && (
+                {visiblePlotTimeline?.progress && (
                   <>
                     {" · "}{tr("Day", "दिवस")} {Math.min(
-                      plotTimeline.currentDay,
-                      plotTimeline.totalDaysReleased
-                    )} / {plotTimeline.totalDaysReleased}
+                      visiblePlotTimeline.currentDay,
+                      visiblePlotTimeline.totalDaysReleased
+                    )} / {visiblePlotTimeline.totalDaysReleased}
                     {" · "}{tr("Started", "सुरू झाले")} {formatScheduleDate(
-                      plotTimeline.progress.scheduleStartDate,
+                      visiblePlotTimeline.progress.scheduleStartDate,
                       lang
                     )}
                   </>
                 )}
               </p>
             </div>
-            {plotTimeline && (
+            {visiblePlotTimeline && (
               <span
                 className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
-                  plotTimeline.status === "COMPLETED"
+                  visiblePlotTimeline.status === "COMPLETED"
                     ? "bg-amber-100 text-amber-900"
-                    : plotTimeline.status === "ACTIVE"
+                    : visiblePlotTimeline.status === "ACTIVE"
                       ? "bg-emerald-100 text-emerald-900"
                       : "bg-slate-100 text-slate-700"
                 }`}
               >
-                {plotTimeline.status === "NOT_RELEASED"
+                {visiblePlotTimeline.status === "NOT_RELEASED"
                   ? tr("Waiting for release", "सोडण्याची प्रतीक्षा")
-                  : plotTimeline.status === "COMPLETED"
+                  : visiblePlotTimeline.status === "COMPLETED"
                     ? tr("Completed", "पूर्ण")
-                    : plotTimeline.status === "ACTIVE"
+                    : visiblePlotTimeline.status === "ACTIVE"
                       ? tr("Active", "सक्रिय")
-                      : plotTimeline.status}
+                      : visiblePlotTimeline.status}
               </span>
             )}
           </div>
@@ -1381,10 +1457,10 @@ export default function FarmerDetailsPage() {
               {plotTimelineError}
             </p>
           )}
-          {plotTimeline && (
+          {visiblePlotTimeline && (
             <PlotScheduleTimeline
-              key={plotTimeline.plot.id}
-              timeline={plotTimeline}
+              key={visiblePlotTimeline.plot.id}
+              timeline={visiblePlotTimeline}
               admin
               onEditSpray={handleEditTimelineSpray}
               onDeleteSpray={handleDeleteSprayItem}
@@ -1399,7 +1475,7 @@ export default function FarmerDetailsPage() {
                   day,
                   scheduledDate:
                     dateFromCropDay(
-                      plotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
+                      visiblePlotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
                       day
                     ) || getDateInIndia(),
                 }));
@@ -1413,7 +1489,7 @@ export default function FarmerDetailsPage() {
                   day,
                   scheduledDate:
                     dateFromCropDay(
-                      plotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
+                      visiblePlotTimeline.progress?.scheduleStartDate || selectedPlot.sowingDate,
                       day
                     ) || getDateInIndia(),
                 }));
@@ -1795,9 +1871,11 @@ export default function FarmerDetailsPage() {
                   </label>
                   <select
                     value={sprayForm.time}
-                    onChange={(e: any) =>
-                      setSprayForm({ ...sprayForm, time: e.target.value })
-                    }
+                    onChange={(e) => {
+                      if (e.target.value === "Morning" || e.target.value === "Evening") {
+                        setSprayForm({ ...sprayForm, time: e.target.value });
+                      }
+                    }}
                     className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                   >
                     <option value="Morning">{tr("Morning (सकाळ)", "सकाळ")}</option>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
@@ -33,6 +34,7 @@ import {
 const getTodayDateValue = () => new Date().toISOString().split("T")[0];
 
 export default function FarmerMasterPage() {
+  const router = useRouter();
   const { lang } = useLanguage();
   const mr = lang === "mr";
   const [farmers, setFarmers] = useState<Farmer[]>([]);
@@ -105,6 +107,11 @@ export default function FarmerMasterPage() {
       const jsonFarmers = await resFarmers.json();
       const jsonGen = await resGen.json();
       const jsonSched = await resSched.json();
+
+      if (resFarmers.status === 401) {
+        router.replace("/login");
+        return;
+      }
 
       if (!resFarmers.ok || !jsonFarmers.success) {
         throw new Error(jsonFarmers.message || jsonFarmers.error || (mr ? "शेतकऱ्यांची माहिती लोड करता आली नाही." : "Unable to load farmers."));

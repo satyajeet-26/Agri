@@ -40,6 +40,12 @@ export async function GET(
     if (!plot) {
       return NextResponse.json({ success: false, message: "Plot not found." }, { status: 404 });
     }
+    if (!isAdmin && plot.isActive === false) {
+      return NextResponse.json(
+        { success: false, message: "This plot is inactive. Its schedule is unavailable." },
+        { status: 403 }
+      );
+    }
 
     if (updateScheduleProgressStatuses(db.scheduleProgress, db.farmers)) {
       await saveDb(db);
@@ -87,6 +93,7 @@ export async function GET(
         plot: {
           id: plot.id,
           plotName: plot.plotName,
+          isActive: plot.isActive !== false,
           cropName: plot.cropName,
           sowingDate: plot.sowingDate,
           areaAcre: plot.areaAcre,

@@ -9,6 +9,24 @@ import {
 } from "@/lib/schedule-progress";
 import { isFarmerRequest } from "@/lib/farmer-auth";
 import { getDateInIndia } from "@/lib/schedule-date";
+import { Plot } from "@/types";
+
+type PlotUpdateInput = Pick<Plot, "plotName" | "cropName" | "sowingDate"> &
+  Partial<
+    Pick<
+      Plot,
+      | "id"
+      | "isActive"
+      | "areaAcre"
+      | "areaGuntha"
+      | "spraySchedule"
+      | "fertilizerSchedule"
+    >
+  >;
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "An unexpected error occurred.";
+}
 
 export async function GET(
   req: Request,
@@ -58,8 +76,8 @@ export async function GET(
       scheduleProgress,
       plotCurrentDays,
     });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -83,7 +101,8 @@ export async function PUT(
     // If updating plots
     let updatedPlots = current.plots;
     if (Array.isArray(body.plots)) {
-      updatedPlots = body.plots.map((p: any) => {
+      updatedPlots = body.plots.map((p: PlotUpdateInput) => {
+        const existingPlot = current.plots.find((plot) => plot.id === p.id);
         const acre = Number(p.areaAcre) || 0;
         const guntha = Number(p.areaGuntha) || 0;
         const totalGuntha = calculateTotalGuntha(acre, guntha);
@@ -105,6 +124,10 @@ export async function PUT(
         return {
           id: p.id || `plt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           plotName: p.plotName,
+          isActive:
+            typeof p.isActive === "boolean"
+              ? p.isActive
+              : existingPlot?.isActive !== false,
           cropName: p.cropName,
           sowingDate: p.sowingDate,
           areaAcre: acre,
@@ -142,8 +165,8 @@ export async function PUT(
       message: "Farmer updated successfully",
       farmer: toPublicFarmer(db.farmers[index]),
     });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -165,7 +188,7 @@ export async function DELETE(
     await saveDb(db);
 
     return NextResponse.json({ success: true, message: "Farmer deleted successfully" });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

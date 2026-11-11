@@ -159,6 +159,7 @@ export interface PersonalizedFertilizerItem {
 export interface Plot {
   id: string;
   plotName: string; // e.g. "Plot 1 - North Side"
+  isActive?: boolean;
   cropName: string;
   sowingDate: string; // YYYY-MM-DD
   areaAcre: number;
@@ -221,7 +222,7 @@ export interface ScheduleTimelineDay {
 export interface PlotScheduleTimeline {
   plot: Pick<
     Plot,
-    "id" | "plotName" | "cropName" | "sowingDate" | "areaAcre" | "areaGuntha" | "totalGuntha"
+    "id" | "plotName" | "isActive" | "cropName" | "sowingDate" | "areaAcre" | "areaGuntha" | "totalGuntha"
   >;
   progress: ScheduleProgress | null;
   currentDate: string;
@@ -306,6 +307,7 @@ export interface MarketRate {
 export interface AdminUser {
   email: string;
   passwordHash: string;
+  sessionSecret?: string;
 }
 
 export interface DatabaseSchema {

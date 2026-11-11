@@ -176,8 +176,9 @@ application files.
    omitted, its signing key falls back to `SUPABASE_SERVICE_ROLE_KEY` on
    Vercel, which remains stable across serverless instances. Rotating a
    configured session secret or the Supabase service-role key requires users
-   to log in again. Outside Vercel, the fallback is the current admin password
-   hash.
+   to log in again. Outside Vercel, a random signing secret is stored with the
+   local application database so changing the admin password does not
+   invalidate active sessions.
 3. On first access, the app initializes an empty application-state table with
    its built-in starter data.
 

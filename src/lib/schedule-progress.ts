@@ -61,15 +61,16 @@ export function farmerScheduleView(
           entry.cropId === plot.cropName
       );
       const totalDaysReleased = progress?.totalDaysReleased ?? 0;
+      const isInactive = plot.isActive === false;
 
       return {
         ...plot,
-        spraySchedule: plot.spraySchedule.filter(
-          (item) => item.day <= totalDaysReleased
-        ),
-        fertilizerSchedule: plot.fertilizerSchedule.filter(
-          (item) => item.day <= totalDaysReleased
-        ),
+        spraySchedule: isInactive
+          ? []
+          : plot.spraySchedule.filter((item) => item.day <= totalDaysReleased),
+        fertilizerSchedule: isInactive
+          ? []
+          : plot.fertilizerSchedule.filter((item) => item.day <= totalDaysReleased),
       };
     }),
   };
