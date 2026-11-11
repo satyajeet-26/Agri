@@ -54,6 +54,7 @@ export default function GeneralMasterPage() {
     whatsapp: "",
     email: "",
     address: "",
+    logoUrl: "/logo.png",
     licenseNumber: "",
     fertilizerLicenseNumber: "",
     pesticideLicenseNumber: "",
@@ -89,6 +90,7 @@ export default function GeneralMasterPage() {
         const d = json.data;
         setShop({
           ...d.shop,
+          logoUrl: d.shop?.logoUrl || "/logo.png",
           fertilizerLicenseNumber:
             d.shop?.fertilizerLicenseNumber || d.shop?.licenseNumber || "",
           pesticideLicenseNumber:
@@ -549,6 +551,22 @@ export default function GeneralMasterPage() {
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
                 placeholder={mr ? "उदा. संपूर्ण कृषी सल्ला सेवा व दर्जेदार कीटकनाशके" : "e.g. Complete Agricultural Consultancy & Quality Pesticides"}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                {mr ? "लोगो प्रतिमा URL" : "Logo Image URL"}
+              </label>
+              <input
+                type="url"
+                value={shop.logoUrl || ""}
+                onChange={(e) => setShop({ ...shop, logoUrl: e.target.value || "/logo.png" })}
+                className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+                placeholder="/logo.png or https://example.com/logo.png"
+              />
+              <p className="mt-1 text-[10px] text-slate-500">
+                {mr ? "वेबसाइटवर वापरण्यासाठी सार्वजनिक प्रतिमा URL टाका." : "Use a public image URL for the website branding."}
+              </p>
             </div>
 
             <div>

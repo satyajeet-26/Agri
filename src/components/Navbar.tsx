@@ -14,6 +14,7 @@ interface NavbarProps {
 export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
   const { lang, setLang, t } = useLanguage();
   const [shop, setShop] = useState<ShopProfile | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     fetch("/api/masters/general")
@@ -21,10 +22,14 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
       .then((res) => {
         if (res.success && res.data?.shop) {
           setShop(res.data.shop);
+          setLogoError(false);
         }
       })
       .catch(() => {});
   }, []);
+
+  const brandLogoSrc = shop?.logoUrl || "/logo.png";
+  const brandName = shop?.name || "Shree Krushi Seva Kendra";
 
   const handleLogout = async () => {
     try {
@@ -47,12 +52,23 @@ export function Navbar({ userRole = "ADMIN", userName }: NavbarProps) {
               href={userRole === "ADMIN" ? "/admin" : "/farmer"}
               className="flex items-center space-x-3 group"
             >
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-amber-400 to-emerald-500 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
-                <Sprout className="w-6 h-6 text-emerald-950" />
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-transparent ring-1 ring-white/20 shadow-inner group-hover:scale-105 transition-transform">
+                {logoError ? (
+                  <div className="w-full h-full bg-linear-to-br from-amber-400 to-emerald-500 flex items-center justify-center">
+                    <Sprout className="w-5 h-5 text-emerald-950" />
+                  </div>
+                ) : (
+                  <img
+                    src={brandLogoSrc}
+                    alt={`${brandName} logo`}
+                    className="w-full h-full object-cover"
+                    onError={() => setLogoError(true)}
+                  />
+                )}
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-lg leading-tight tracking-tight text-white group-hover:text-amber-200 transition-colors">
-                  {shop?.name || "Shree Krushi Seva Kendra"}
+                  {brandName}
                 </span>
                 <span className="text-xs text-emerald-200 font-medium hidden sm:inline">
                   {shop?.tagline || t("consultancySystem")}

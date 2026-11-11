@@ -38,6 +38,7 @@ export default function FarmerPanelPage() {
 
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
+  const [logoError, setLogoError] = useState(false);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
   const [marketRateNotifications, setMarketRateNotifications] = useState<MarketRate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +125,7 @@ export default function FarmerPanelPage() {
 
         if (generalResponse.ok && generalResult.success && generalResult.data?.shop) {
           setShop(generalResult.data.shop);
+          setLogoError(false);
         }
       } catch (error: unknown) {
         if (cancelled) return;
@@ -233,8 +235,19 @@ export default function FarmerPanelPage() {
       <header className="sticky top-0 z-40 bg-emerald-800 text-white shadow-md">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center shadow-xs text-emerald-950 font-bold text-lg">
-              🌾
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-transparent ring-1 ring-white/15 shadow-xs">
+              {logoError ? (
+                <div className="w-full h-full bg-amber-400 flex items-center justify-center text-emerald-950 font-bold text-lg">
+                  🌾
+                </div>
+              ) : (
+                <img
+                  src={shop?.logoUrl || "/logo.png"}
+                  alt={`${shop?.name || "Krushi Seva Kendra"} logo`}
+                  className="w-full h-full object-cover"
+                  onError={() => setLogoError(true)}
+                />
+              )}
             </div>
             <div>
               <h1 className="font-extrabold text-sm sm:text-base leading-tight">

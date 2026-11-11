@@ -21,6 +21,7 @@ const INITIAL_DATABASE: DatabaseSchema = {
     whatsapp: "",
     email: "contact@example.test",
     address: "Demo Address",
+    logoUrl: "/logo.png",
   },
   admin: {
     email: "admin@krushi.com",

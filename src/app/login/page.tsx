@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shop, setShop] = useState<ShopProfile | null>(null);
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     fetch("/api/masters/general")
@@ -20,6 +21,7 @@ export default function LoginPage() {
       .then((res) => {
         if (res.success && res.data?.shop) {
           setShop(res.data.shop);
+          setLogoError(false);
         }
       })
       .catch(() => {});
@@ -112,8 +114,17 @@ export default function LoginPage() {
         </div>
         {/* Brand & Krushi Seva Kendra Logo */}
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-emerald-400 flex items-center justify-center mx-auto shadow-xl text-3xl">
-            🌾
+          <div className="w-20 h-20 rounded-full overflow-hidden bg-transparent ring-1 ring-white/10 flex items-center justify-center mx-auto shadow-xl">
+            {logoError ? (
+              <span className="text-3xl" aria-label="Agriculture logo">🌾</span>
+            ) : (
+              <img
+                src={shop?.logoUrl || "/logo.png"}
+                alt={`${shop?.name || "Shree Krushi Seva Kendra"} logo`}
+                className="w-full h-full object-cover"
+                onError={() => setLogoError(true)}
+              />
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             {shop?.name || "Shree Krushi Seva Kendra"}
