@@ -44,6 +44,7 @@ A full-stack, responsive web application and consultancy management system desig
   - Personal Info: Full Name, Mobile, WhatsApp, Opening Balance Type (Credit / Debit), Opening Balance (₹), Registration Date.
   - Location Info: State $\rightarrow$ District $\rightarrow$ Taluka $\rightarrow$ Village cascading selection.
   - Website Login: Username & Password for the farmer.
+  - Admins can update a farmer's login ID and reset their password from the farmer profile; leaving the new password blank keeps the current password.
   - **Multiple Plots**: Add multiple plots per farmer (e.g. Plot 1: Sugarcane 2 Acre, Plot 2: Ginger 20 Guntha).
   - **Automatic Master Cloning**: Automatically initializes and clones the standard master spray and fertilizer schedules for each new plot based on the Sowing Date!
 

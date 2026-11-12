@@ -92,6 +92,7 @@ export default function FarmerDetailsPage() {
   const [loadError, setLoadError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [credentialsForm, setCredentialsForm] = useState({ username: "", password: "" });
 
   // Selected plot for viewing & customization
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
@@ -205,6 +206,7 @@ export default function FarmerDetailsPage() {
         throw new Error(jsonFarmer.message || jsonFarmer.error || tr("Unable to load farmer details.", "शेतकऱ्याची माहिती लोड करता आली नाही."));
       }
       setFarmer(jsonFarmer.farmer);
+      setCredentialsForm({ username: jsonFarmer.farmer.username, password: "" });
       setScheduleProgress(jsonFarmer.scheduleProgress || []);
       if (!resDiary.ok || !jsonDiary.success || !Array.isArray(jsonDiary.entries)) {
         throw new Error(jsonDiary.message || tr("Unable to load farmer diary records.", "शेतकऱ्याच्या डायरीतील नोंदी लोड करता आल्या नाहीत."));
@@ -304,6 +306,42 @@ export default function FarmerDetailsPage() {
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
+  };
+
+  const handleSaveCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!farmer || savingAction) return;
+
+    setSavingAction("credentials");
+    try {
+      const response = await fetchWithTimeout(`/api/farmers/${farmer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: credentialsForm.username,
+          ...(credentialsForm.password ? { password: credentialsForm.password } : {}),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.farmer) {
+        throw new Error(
+          result.message || result.error || tr("Unable to update login credentials.", "लॉगिन तपशील अद्ययावत करता आले नाहीत.")
+        );
+      }
+
+      setFarmer(result.farmer);
+      setCredentialsForm({ username: result.farmer.username, password: "" });
+      showNotification("success", tr("Farmer login credentials updated.", "शेतकऱ्याचे लॉगिन तपशील अद्ययावत केले."));
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error
+          ? error.message
+          : tr("Unable to update login credentials.", "लॉगिन तपशील अद्ययावत करता आले नाहीत.")
+      );
+    } finally {
+      setSavingAction(null);
+    }
   };
 
   if (loading) {
@@ -1121,6 +1159,48 @@ export default function FarmerDetailsPage() {
             </div>
           </div>
         </div>
+
+        <form
+          onSubmit={handleSaveCredentials}
+          className="mt-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+        >
+          <label className="block text-xs font-semibold text-slate-700">
+            {tr("Farmer Login ID / Username", "शेतकरी लॉगिन आयडी / वापरकर्ता नाव")}
+            <input
+              type="text"
+              required
+              value={credentialsForm.username}
+              onChange={(event) =>
+                setCredentialsForm((current) => ({ ...current, username: event.target.value }))
+              }
+              autoComplete="off"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            {tr("New Password", "नवीन पासवर्ड")}
+            <input
+              type="password"
+              value={credentialsForm.password}
+              onChange={(event) =>
+                setCredentialsForm((current) => ({ ...current, password: event.target.value }))
+              }
+              autoComplete="new-password"
+              placeholder={tr("Leave blank to keep current", "सध्याचा पासवर्ड ठेवण्यासाठी रिकामे सोडा")}
+              className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingAction !== null}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            {savingAction === "credentials"
+              ? tr("Saving...", "जतन करत आहे...")
+              : tr("Update Login", "लॉगिन अद्ययावत करा")}
+          </button>
+        </form>
       </div>
 
       <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

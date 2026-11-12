@@ -97,6 +97,40 @@ export async function PUT(
     }
 
     const current = db.farmers[index];
+    let updatedUsername = current.username;
+    if (body.username !== undefined) {
+      if (typeof body.username !== "string" || !body.username.trim()) {
+        return NextResponse.json(
+          { success: false, message: "Farmer login ID is required." },
+          { status: 400 }
+        );
+      }
+
+      updatedUsername = body.username.trim();
+      const normalizedUsername = updatedUsername.toLowerCase();
+      const usernameInUse = db.farmers.some(
+        (farmer, farmerIndex) =>
+          farmerIndex !== index &&
+          ((farmer.username || "").trim().toLowerCase() === normalizedUsername ||
+            (farmer.mobile || "").trim().toLowerCase() === normalizedUsername)
+      );
+      if (usernameInUse) {
+        return NextResponse.json(
+          { success: false, message: "This login ID is already in use." },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (
+      body.password !== undefined &&
+      (typeof body.password !== "string" || body.password.length === 0)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "A new password cannot be empty." },
+        { status: 400 }
+      );
+    }
 
     // If updating plots
     let updatedPlots = current.plots;
@@ -151,7 +185,7 @@ export async function PUT(
       district: body.district ?? current.district,
       taluka: body.taluka ?? current.taluka,
       village: body.village ?? current.village,
-      username: body.username ?? current.username,
+      username: updatedUsername,
       passwordHash: body.password ?? current.passwordHash,
       plainPassword: body.password ?? current.plainPassword,
       isActive: body.isActive !== undefined ? body.isActive : current.isActive,
