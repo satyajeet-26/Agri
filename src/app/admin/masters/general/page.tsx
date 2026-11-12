@@ -578,7 +578,6 @@ export default function GeneralMasterPage() {
                 value={shop.mobile}
                 onChange={(e) => setShop({ ...shop, mobile: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="+91 9822012345"
               />
             </div>
 
@@ -591,7 +590,6 @@ export default function GeneralMasterPage() {
                 value={shop.whatsapp}
                 onChange={(e) => setShop({ ...shop, whatsapp: e.target.value })}
                 className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
-                placeholder="+91 9822012345"
               />
             </div>
 

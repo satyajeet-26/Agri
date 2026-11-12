@@ -37,6 +37,7 @@ interface PlotScheduleTimelineProps {
   onAddSpray?: (day: number) => void;
   onAddFertilizer?: (day: number) => void;
   onSendWhatsApp?: (day: number) => void;
+  onSaveDayNote?: (day: number, note: string) => Promise<void>;
 }
 
 function statusLabel(status: string, language: "en" | "mr"): string {
@@ -77,8 +78,33 @@ export function PlotScheduleTimeline({
   onAddSpray,
   onAddFertilizer,
   onSendWhatsApp,
+  onSaveDayNote,
 }: PlotScheduleTimelineProps) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
+  const [savingNoteDay, setSavingNoteDay] = useState<number | null>(null);
+  const [noteSaveError, setNoteSaveError] = useState("");
+
+  const handleSaveDayNote = async (day: number) => {
+    if (!onSaveDayNote) return;
+    setSavingNoteDay(day);
+    setNoteSaveError("");
+    try {
+      const note = noteDrafts[day] || "";
+      await onSaveDayNote(day, note);
+      setNoteDrafts((current) => ({ ...current, [day]: note.trim() }));
+    } catch (error: unknown) {
+      setNoteSaveError(
+        error instanceof Error
+          ? error.message
+          : language === "mr"
+            ? "दिवसाची सूचना जतन करता आली नाही."
+            : "Unable to save the day note."
+      );
+    } finally {
+      setSavingNoteDay(null);
+    }
+  };
 
   return (
     <section aria-label="Day-wise plot schedule" className="space-y-4">
@@ -220,12 +246,64 @@ export function PlotScheduleTimeline({
                           </button>
                         </div>
                         <div className="space-y-3 p-4 sm:p-5">
-                      {!hasItems && (
+                      {!hasItems && !entry.note && (
                         <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
                           {language === "mr"
                             ? "या दिवशी फवारणी किंवा खत देण्याचे नियोजन नाही."
                             : "No spray or fertilizer application is scheduled for this day."}
                         </p>
+                      )}
+
+                      {entry.note && (
+                        <article className="space-y-1 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+                          <h4 className="font-bold">
+                            {language === "mr" ? "केंद्राकडून सूचना" : "Note from the admin"}
+                          </h4>
+                          <p className="whitespace-pre-wrap text-xs">{entry.note}</p>
+                        </article>
+                      )}
+
+                      {admin && onSaveDayNote && (
+                        <div className="space-y-2 rounded-lg border border-blue-200 bg-white p-3">
+                          <label
+                            htmlFor={`schedule-day-${entry.day}-note`}
+                            className="block text-xs font-bold text-slate-800"
+                          >
+                            {language === "mr" ? "या दिवसासाठी शेतकऱ्याला सूचना" : "Note for this day"}
+                          </label>
+                          <textarea
+                            id={`schedule-day-${entry.day}-note`}
+                            value={noteDrafts[entry.day] ?? entry.note ?? ""}
+                            maxLength={2000}
+                            rows={3}
+                            onChange={(event) =>
+                              setNoteDrafts((current) => ({
+                                ...current,
+                                [entry.day]: event.target.value,
+                              }))
+                            }
+                            placeholder={
+                              language === "mr"
+                                ? "शेतकऱ्यासाठी दिवसाची सूचना लिहा..."
+                                : "Write a day-specific note for the farmer..."
+                            }
+                            className="w-full rounded-lg border border-slate-300 p-2 text-xs text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                          />
+                          {noteSaveError && savingNoteDay === null && (
+                            <p role="alert" className="text-xs text-red-700">{noteSaveError}</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleSaveDayNote(entry.day)}
+                            disabled={savingNoteDay !== null}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            {savingNoteDay === entry.day
+                              ? language === "mr" ? "जतन करत आहे..." : "Saving..."
+                              : language === "mr" ? "सूचना पाठवा" : "Send note"}
+                          </button>
+                        </div>
                       )}
 
                       {entry.sprays.map((item) => (

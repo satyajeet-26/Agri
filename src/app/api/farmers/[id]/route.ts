@@ -85,12 +85,38 @@ export async function GET(
         ];
       })
     );
+    const todayScheduleNotes = db.scheduleDayNotes.flatMap((entry) => {
+      const plot = farmer.plots.find((candidate) => candidate.id === entry.plotId);
+      const progress = scheduleProgress.find(
+        (candidate) =>
+          candidate.plotId === entry.plotId &&
+          candidate.cropId === plot?.cropName &&
+          candidate.masterScheduleId === plot?.cropName
+      );
+      if (
+        !plot ||
+        plot.isActive === false ||
+        !progress ||
+        entry.day !== plotCurrentDays[plot.id] ||
+        entry.day > progress.totalDaysReleased
+      ) {
+        return [];
+      }
+      return [{
+        plotId: plot.id,
+        plotName: plot.plotName,
+        cropName: plot.cropName,
+        day: entry.day,
+        note: entry.note,
+      }];
+    });
 
     return NextResponse.json({
       success: true,
       farmer: publicFarmer,
       scheduleProgress,
       plotCurrentDays,
+      todayScheduleNotes,
     });
   } catch (error: unknown) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
@@ -294,6 +320,7 @@ export async function DELETE(
     }
 
     db.farmers.splice(index, 1);
+    db.scheduleDayNotes = db.scheduleDayNotes.filter((note) => note.farmerId !== id);
     await saveDb(db);
 
     return NextResponse.json({ success: true, message: "Farmer deleted successfully" });

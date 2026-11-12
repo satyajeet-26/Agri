@@ -25,9 +25,11 @@ import {
   Sparkles,
   Droplets,
   Lock,
+  Upload,
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { readFarmerProfilePhoto } from "@/lib/farmer-photo";
 import {
   dateFromCropDay,
   formatScheduleDate,
@@ -97,6 +99,7 @@ export default function FarmerDetailsPage() {
     mobile: "",
     password: "",
   });
+  const [profilePhotoDraft, setProfilePhotoDraft] = useState<string | null>(null);
 
   // Selected plot for viewing & customization
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
@@ -314,6 +317,73 @@ export default function FarmerDetailsPage() {
   const showNotification = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
+  };
+
+  const handleSelectProfilePhoto = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      setProfilePhotoDraft(await readFarmerProfilePhoto(file));
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error
+          ? error.message
+          : tr("Unable to read the selected photo.", "निवडलेला फोटो वाचता आला नाही.")
+      );
+    } finally {
+      input.value = "";
+    }
+  };
+
+  const handleSaveProfilePhoto = async (removePhoto = false) => {
+    if (!farmer || savingAction || (!profilePhotoDraft && !removePhoto)) return;
+
+    setSavingAction("profile-photo");
+    try {
+      const response = await fetchWithTimeout(`/api/farmers/${farmer.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          removePhoto
+            ? { removeProfilePhoto: true }
+            : { profilePhotoDataUrl: profilePhotoDraft }
+        ),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            result.error ||
+            tr("Unable to update the farmer photo.", "शेतकऱ्याचा फोटो अद्ययावत करता आला नाही.")
+        );
+      }
+
+      const profilePhotoDataUrl = removePhoto ? undefined : profilePhotoDraft || undefined;
+      setFarmer((current) =>
+        current ? { ...current, profilePhotoDataUrl } : current
+      );
+      setProfilePhotoDraft(null);
+      showNotification(
+        "success",
+        removePhoto
+          ? tr("Farmer photo removed.", "शेतकऱ्याचा फोटो काढून टाकला.")
+          : tr("Farmer photo updated.", "शेतकऱ्याचा फोटो अद्ययावत केला.")
+      );
+    } catch (error: unknown) {
+      showNotification(
+        "error",
+        error instanceof Error
+          ? error.message
+          : tr("Unable to update the farmer photo.", "शेतकऱ्याचा फोटो अद्ययावत करता आला नाही.")
+      );
+    } finally {
+      setSavingAction(null);
+    }
   };
 
   const handleSaveCredentials = async (e: React.FormEvent) => {
@@ -591,6 +661,7 @@ export default function FarmerDetailsPage() {
       `Day: ${day.day}`,
       `Date: ${formatScheduleDate(day.date, "en")}`,
       "",
+      ...(day.note ? [`Admin note: ${day.note}`, ""] : []),
       entries.join("\n\n"),
     ].join("\n");
 
@@ -600,6 +671,36 @@ export default function FarmerDetailsPage() {
       whatsappNumber: farmer.whatsapp || farmer.mobile,
       message,
     });
+  };
+
+  const handleSaveScheduleDayNote = async (day: number, note: string) => {
+    if (!farmer || !selectedPlot) {
+      throw new Error(tr("Select a plot before saving a note.", "सूचना जतन करण्यापूर्वी प्लॉट निवडा."));
+    }
+    if (savingAction) {
+      throw new Error(tr("Another update is still being saved.", "दुसरे अपडेट अद्याप जतन होत आहे."));
+    }
+
+    setSavingAction("day-note");
+    try {
+      const response = await fetchWithTimeout(
+        `/api/farmers/${encodeURIComponent(farmer.id)}/plots/${encodeURIComponent(selectedPlot.id)}/schedule`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "SAVE_DAY_NOTE", day, note }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || tr("Unable to save the schedule note.", "वेळापत्रकाची सूचना जतन करता आली नाही."));
+      }
+
+      setPlotTimelineRefresh((current) => current + 1);
+      showNotification("success", tr("The note is now visible to the farmer.", "ही सूचना आता शेतकऱ्याला दिसेल."));
+    } finally {
+      setSavingAction(null);
+    }
   };
 
   const handleEditTimelineSpray = (item: PersonalizedSprayItem) => {
@@ -1080,17 +1181,56 @@ export default function FarmerDetailsPage() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-start space-x-3.5">
-            {farmer.profilePhotoDataUrl ? (
-              <img
-                src={farmer.profilePhotoDataUrl}
-                alt={tr(`${farmer.name}'s profile photo`, `${farmer.name} यांचा प्रोफाइल फोटो`)}
-                className="h-13 w-13 rounded-2xl object-cover shadow-md"
-              />
-            ) : (
-              <div className="w-13 h-13 rounded-2xl bg-linear-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
-                👨‍🌾
-              </div>
-            )}
+            <div className="shrink-0 space-y-2">
+              {(profilePhotoDraft || farmer.profilePhotoDataUrl) ? (
+                <img
+                  src={profilePhotoDraft || farmer.profilePhotoDataUrl}
+                  alt={tr(`${farmer.name}'s profile photo`, `${farmer.name} यांचा प्रोफाइल फोटो`)}
+                  className="h-13 w-13 rounded-2xl object-cover shadow-md"
+                />
+              ) : (
+                <div className="w-13 h-13 rounded-2xl bg-linear-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
+                  👨‍🌾
+                </div>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
+                <Upload className="h-3.5 w-3.5" />
+                {tr("Choose photo", "फोटो निवडा")}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleSelectProfilePhoto}
+                  disabled={savingAction !== null}
+                  className="sr-only"
+                  aria-label={tr("Choose a farmer photo", "शेतकऱ्याचा फोटो निवडा")}
+                />
+              </label>
+              {profilePhotoDraft && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveProfilePhoto()}
+                  disabled={savingAction !== null}
+                  className="block rounded-lg bg-emerald-700 px-2 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+                >
+                  {savingAction === "profile-photo"
+                    ? tr("Saving…", "जतन करत आहे…")
+                    : tr("Save photo", "फोटो जतन करा")}
+                </button>
+              )}
+              {!profilePhotoDraft && farmer.profilePhotoDataUrl && (
+                <button
+                  type="button"
+                  onClick={() => void handleSaveProfilePhoto(true)}
+                  disabled={savingAction !== null}
+                  className="block rounded-lg border border-red-200 px-2 py-1.5 text-[11px] font-bold text-red-700 disabled:opacity-60"
+                >
+                  {tr("Remove photo", "फोटो काढा")}
+                </button>
+              )}
+              <p className="max-w-32 text-[10px] text-slate-500">
+                {tr("JPG, PNG or WebP · max 1 MB", "JPG, PNG किंवा WebP · कमाल 1 MB")}
+              </p>
+            </div>
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
@@ -1621,6 +1761,7 @@ export default function FarmerDetailsPage() {
                 setShowFertForm(true);
               }}
               onSendWhatsApp={handleOpenTimelineWhatsApp}
+              onSaveDayNote={handleSaveScheduleDayNote}
             />
           )}
         </section>

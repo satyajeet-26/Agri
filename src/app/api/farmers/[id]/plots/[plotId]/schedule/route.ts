@@ -83,6 +83,11 @@ export async function GET(
         status,
         sprays: visiblePlot.spraySchedule.filter((item) => item.day === day),
         fertilizers: visiblePlot.fertilizerSchedule.filter((item) => item.day === day),
+        note:
+          db.scheduleDayNotes.find(
+            (entry) =>
+              entry.farmerId === id && entry.plotId === plotId && entry.day === day
+          )?.note || "",
       };
     });
 
@@ -149,6 +154,14 @@ export async function PUT(
     if (!plot) {
       return NextResponse.json({ success: false, message: "Plot not found" }, { status: 404 });
     }
+    const totalDaysReleased =
+      db.scheduleProgress.find(
+        (entry) =>
+          entry.farmerId === id &&
+          entry.plotId === plotId &&
+          entry.cropId === plot.cropName &&
+          entry.masterScheduleId === plot.cropName
+      )?.totalDaysReleased ?? 0;
 
     // Action types:
     // 1. "UPDATE_SPRAY": replace or update a spray schedule item
@@ -158,6 +171,7 @@ export async function PUT(
     // 5. "ADD_FERTILIZER": add a day to fertilizer schedule
     // 6. "DELETE_FERTILIZER": delete a day from fertilizer schedule
     // 7. "RESET_TO_MASTER": re-clone standard template for this plot
+    // 8. "SAVE_DAY_NOTE": save or clear an admin note for a released day
 
     const { action, item, itemId, type } = body;
     const supportedActions = [
@@ -169,6 +183,7 @@ export async function PUT(
       "DELETE_FERTILIZER",
       "RESET_TO_MASTER",
       "TOGGLE_COMPLETED",
+      "SAVE_DAY_NOTE",
     ];
     if (!supportedActions.includes(action)) {
       return NextResponse.json(
@@ -189,6 +204,57 @@ export async function PUT(
         { success: false, message: "A positive whole-number day and valid scheduled date are required." },
         { status: 400 }
       );
+    }
+
+    if (action === "SAVE_DAY_NOTE") {
+      const day = Number(body.day);
+      if (!Number.isInteger(day) || day < 1 || day > totalDaysReleased) {
+        return NextResponse.json(
+          { success: false, message: "Choose a released schedule day." },
+          { status: 400 }
+        );
+      }
+      if (typeof body.note !== "string" || body.note.length > 2000) {
+        return NextResponse.json(
+          { success: false, message: "A note of up to 2,000 characters is allowed." },
+          { status: 400 }
+        );
+      }
+
+      const existingNoteIndex = db.scheduleDayNotes.findIndex(
+        (entry) =>
+          entry.farmerId === id && entry.plotId === plotId && entry.day === day
+      );
+      const note = body.note.trim();
+      if (!note) {
+        if (existingNoteIndex !== -1) {
+          db.scheduleDayNotes.splice(existingNoteIndex, 1);
+        }
+      } else {
+        const savedNote = {
+          id:
+            existingNoteIndex !== -1
+              ? db.scheduleDayNotes[existingNoteIndex].id
+              : `sdn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          farmerId: id,
+          plotId,
+          day,
+          note,
+          updatedAt: new Date().toISOString(),
+        };
+        if (existingNoteIndex !== -1) {
+          db.scheduleDayNotes[existingNoteIndex] = savedNote;
+        } else {
+          db.scheduleDayNotes.push(savedNote);
+        }
+      }
+
+      await saveDb(db);
+      return NextResponse.json({
+        success: true,
+        message: "Schedule day note saved.",
+        plot,
+      });
     }
 
     if (action === "RESET_TO_MASTER") {

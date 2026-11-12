@@ -215,12 +215,22 @@ export interface ScheduleProgress {
 
 export type ScheduleDayStatus = "COMPLETED" | "TODAY" | "UPCOMING";
 
+export interface ScheduleDayNote {
+  id: string;
+  farmerId: string;
+  plotId: string;
+  day: number;
+  note: string;
+  updatedAt: string;
+}
+
 export interface ScheduleTimelineDay {
   day: number;
   date: string;
   status: ScheduleDayStatus;
   sprays: PersonalizedSprayItem[];
   fertilizers: PersonalizedFertilizerItem[];
+  note?: string;
 }
 
 export interface PlotScheduleTimeline {
@@ -330,6 +340,7 @@ export interface DatabaseSchema {
   masterSchedules: Record<string, MasterCropSchedule>; // key: cropName
   farmers: Farmer[];
   scheduleProgress: ScheduleProgress[];
+  scheduleDayNotes: ScheduleDayNote[];
   scheduleExtensionHistory: ScheduleExtensionHistory[];
   farmDiaryEntries: FarmDiaryEntry[];
   marketRates: MarketRate[];

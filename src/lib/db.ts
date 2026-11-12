@@ -638,6 +638,7 @@ const INITIAL_DATABASE: DatabaseSchema = {
     },
   ],
   scheduleProgress: [],
+  scheduleDayNotes: [],
   scheduleExtensionHistory: [],
   farmDiaryEntries: [],
   marketRates: [],
@@ -713,6 +714,11 @@ function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
     data.scheduleProgress = [];
   } else if (!Array.isArray(data.scheduleProgress)) {
     throw new Error("Database schedule progress is invalid.");
+  }
+  if (data.scheduleDayNotes === undefined) {
+    data.scheduleDayNotes = [];
+  } else if (!Array.isArray(data.scheduleDayNotes)) {
+    throw new Error("Database schedule day notes are invalid.");
   }
   if (data.scheduleExtensionHistory === undefined) {
     data.scheduleExtensionHistory = [];

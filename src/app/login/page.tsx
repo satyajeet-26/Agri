@@ -8,7 +8,7 @@ import { useLanguage } from "@/components/LanguageContext";
 export default function LoginPage() {
   const { lang, setLang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"farmer" | "admin">("farmer");
-  const [username, setUsername] = useState("ramesh");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function LoginPage() {
     setActiveTab(tab);
     setError(null);
     if (tab === "farmer") {
-      setUsername("ramesh");
+      setUsername("");
       setPassword("");
     } else {
       setUsername("admin@krushi.com");
@@ -181,7 +181,15 @@ export default function LoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder={activeTab === "farmer" ? "e.g. ramesh or 9822114455" : "admin@krushi.com"}
+                  placeholder={
+                    activeTab === "farmer"
+                      ? lang === "mr"
+                        ? "तुमचे वापरकर्तानाव किंवा मोबाइल क्रमांक टाका"
+                        : "Enter your username or mobile number"
+                      : lang === "mr"
+                        ? "प्रशासकाचा ईमेल टाका"
+                        : "Enter admin email"
+                  }
                   className="w-full text-xs pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 text-slate-900"
                 />
               </div>

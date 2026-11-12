@@ -32,6 +32,14 @@ import {
   ShopProfile,
 } from "@/types";
 
+type TodayScheduleNote = {
+  plotId: string;
+  plotName: string;
+  cropName: string;
+  day: number;
+  note: string;
+};
+
 export default function FarmerPanelPage() {
   const router = useRouter();
   const { lang, setLang } = useLanguage();
@@ -40,6 +48,7 @@ export default function FarmerPanelPage() {
   const [shop, setShop] = useState<ShopProfile | null>(null);
   const [logoError, setLogoError] = useState(false);
   const [scheduleProgress, setScheduleProgress] = useState<ScheduleProgress[]>([]);
+  const [todayScheduleNotes, setTodayScheduleNotes] = useState<TodayScheduleNote[]>([]);
   const [marketRateNotifications, setMarketRateNotifications] = useState<MarketRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -118,6 +127,7 @@ export default function FarmerPanelPage() {
 
         setFarmer(farmerResult.farmer);
         setScheduleProgress(farmerResult.scheduleProgress || []);
+        setTodayScheduleNotes(farmerResult.todayScheduleNotes || []);
         if (marketRatesResponse.ok && marketRatesResult.success) {
           setMarketRateNotifications(marketRatesResult.rates || []);
         }
@@ -226,7 +236,10 @@ export default function FarmerPanelPage() {
     const fertilizers = plot.fertilizerSchedule.filter(
       (item) => getFertilizerScheduledDate(plot, item) === todayDate
     );
-    return sprays.length || fertilizers.length ? [{ plot, sprays, fertilizers }] : [];
+    const notes = todayScheduleNotes.filter((entry) => entry.plotId === plot.id);
+    return sprays.length || fertilizers.length || notes.length
+      ? [{ plot, sprays, fertilizers, notes }]
+      : [];
   });
 
   return (
@@ -356,10 +369,12 @@ export default function FarmerPanelPage() {
           <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4">
             <div>
               <h3 className="text-base font-extrabold text-slate-900">
-                Hello, farmer friend! 👋
+                {lang === "mr" ? "नमस्कार शेतकरी मित्रा! 👋" : "Hello, farmer friend! 👋"}
               </h3>
               <p className="mt-0.5 text-xs text-slate-600">
-                Complete planning for your farm, all in one place.
+                {lang === "mr"
+                  ? "तुमच्या शेतीचे संपूर्ण नियोजन एकाच ठिकाणी."
+                  : "Complete planning for your farm, all in one place."}
               </p>
             </div>
           </div>
@@ -467,7 +482,7 @@ export default function FarmerPanelPage() {
                 : "No new notifications right now."}
             </p>
           ) : (
-            plotScheduleNotifications.map(({ plot, sprays, fertilizers }) => (
+            plotScheduleNotifications.map(({ plot, sprays, fertilizers, notes }) => (
               <Link
                 key={plot.id}
                 href={`/farmer/plots/${encodeURIComponent(plot.id)}`}
@@ -477,16 +492,29 @@ export default function FarmerPanelPage() {
                   <strong className="block text-emerald-950">
                     {plot.plotName} · {plot.cropName}
                   </strong>
-                  <span className="mt-0.5 block text-emerald-900">
-                    {[
-                      sprays.length > 0 &&
-                        `${sprays.length} ${lang === "mr" ? "फवारणी" : sprays.length === 1 ? "spray" : "sprays"}`,
-                      fertilizers.length > 0 &&
-                        `${fertilizers.length} ${lang === "mr" ? "खत" : fertilizers.length === 1 ? "fertilizer" : "fertilizers"}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    {" — "}
+                  {(sprays.length > 0 || fertilizers.length > 0) && (
+                    <span className="mt-0.5 block text-emerald-900">
+                      {[
+                        sprays.length > 0 &&
+                          `${sprays.length} ${lang === "mr" ? "फवारणी" : sprays.length === 1 ? "spray" : "sprays"}`,
+                        fertilizers.length > 0 &&
+                          `${fertilizers.length} ${lang === "mr" ? "खत" : fertilizers.length === 1 ? "fertilizer" : "fertilizers"}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
+                  {notes.map((entry) => (
+                    <span key={entry.day} className="mt-1 block whitespace-pre-wrap text-blue-800">
+                      <strong>
+                        {lang === "mr"
+                          ? `दिवस ${entry.day} — केंद्राकडून सूचना:`
+                          : `Day ${entry.day} — Admin note:`}
+                      </strong>{" "}
+                      {entry.note}
+                    </span>
+                  ))}
+                  <span className="mt-1 block text-emerald-900">
                     {lang === "mr" ? "तपशील पाहण्यासाठी प्लॉट उघडा" : "Open plot to view details"}
                   </span>
                 </span>

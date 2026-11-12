@@ -46,7 +46,7 @@ A full-stack, responsive web application and consultancy management system desig
   - Website Login: Username & Password for the farmer.
   - Admins can update a farmer's login ID and mobile number, and reset their password from the farmer profile; leaving the new password blank keeps the current password.
   - Admins can save a farmer's Aadhaar number and upload a profile photo while adding a farmer or later from the individual farmer profile. Aadhaar is encrypted at rest and shown only as its last four digits to admins; the photo is shown to that farmer in their panel.
-  - Profile photos accept JPG, PNG, or WebP files up to 1 MB and are stored with the application database state.
+  - Profile photos accept JPG, PNG, or WebP files up to 1 MB and are stored with the application database state. Admins can update or remove a farmer's photo from the farmer details page.
   - **Multiple Plots**: Add multiple plots per farmer (e.g. Plot 1: Sugarcane 2 Acre, Plot 2: Ginger 20 Guntha).
   - **Automatic Master Cloning**: Automatically initializes and clones the standard master spray and fertilizer schedules for each new plot based on the Sowing Date!
 
@@ -63,6 +63,7 @@ A full-stack, responsive web application and consultancy management system desig
 - Released schedules become completed when the crop reaches the final released day. The farmer sees an in-panel completion notice, and completed schedules are highlighted for admins to extend.
 - Farmer/plot schedule progress is separate and does not change the master template.
 - Farmer and admin plot pages show a day-by-day timeline with dates and completed/today/upcoming status; unreleased days and their details are not returned by the plot timeline API.
+- Admins can save a note for any released day; farmers see it on that day's timeline and in the dashboard notifications on the scheduled day.
 - The backend calculates the crop day from the schedule start date using the India calendar date.
 
 ### 9. 💬 1-Click WhatsApp Advisory Integration

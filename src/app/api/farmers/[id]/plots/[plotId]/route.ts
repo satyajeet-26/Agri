@@ -28,6 +28,9 @@ export async function DELETE(
     }
 
     farmer.plots.splice(plotIndex, 1);
+    db.scheduleDayNotes = db.scheduleDayNotes.filter(
+      (note) => note.farmerId !== id || note.plotId !== plotId
+    );
     await saveDb(db);
 
     return NextResponse.json({
