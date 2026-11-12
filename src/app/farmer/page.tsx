@@ -333,7 +333,22 @@ export default function FarmerPanelPage() {
                 <span>📞 {farmer.mobile}</span>
               </p>
             </div>
-
+            <div className="flex shrink-0 items-center">
+              {farmer.profilePhotoDataUrl ? (
+                <img
+                  src={farmer.profilePhotoDataUrl}
+                  alt={lang === "mr" ? "तुमचा प्रोफाइल फोटो" : "Your profile photo"}
+                  className="h-20 w-20 rounded-full border-2 border-white/80 object-cover shadow-md"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/80 bg-white/15 text-3xl font-bold text-white"
+                >
+                  {farmer.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

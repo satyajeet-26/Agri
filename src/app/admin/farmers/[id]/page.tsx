@@ -92,7 +92,11 @@ export default function FarmerDetailsPage() {
   const [loadError, setLoadError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [credentialsForm, setCredentialsForm] = useState({ username: "", password: "" });
+  const [credentialsForm, setCredentialsForm] = useState({
+    username: "",
+    mobile: "",
+    password: "",
+  });
 
   // Selected plot for viewing & customization
   const [selectedPlotId, setSelectedPlotId] = useState<string>("");
@@ -206,7 +210,11 @@ export default function FarmerDetailsPage() {
         throw new Error(jsonFarmer.message || jsonFarmer.error || tr("Unable to load farmer details.", "शेतकऱ्याची माहिती लोड करता आली नाही."));
       }
       setFarmer(jsonFarmer.farmer);
-      setCredentialsForm({ username: jsonFarmer.farmer.username, password: "" });
+      setCredentialsForm({
+        username: jsonFarmer.farmer.username,
+        mobile: jsonFarmer.farmer.mobile,
+        password: "",
+      });
       setScheduleProgress(jsonFarmer.scheduleProgress || []);
       if (!resDiary.ok || !jsonDiary.success || !Array.isArray(jsonDiary.entries)) {
         throw new Error(jsonDiary.message || tr("Unable to load farmer diary records.", "शेतकऱ्याच्या डायरीतील नोंदी लोड करता आल्या नाहीत."));
@@ -319,6 +327,7 @@ export default function FarmerDetailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: credentialsForm.username,
+          mobile: credentialsForm.mobile,
           ...(credentialsForm.password ? { password: credentialsForm.password } : {}),
         }),
       });
@@ -330,7 +339,11 @@ export default function FarmerDetailsPage() {
       }
 
       setFarmer(result.farmer);
-      setCredentialsForm({ username: result.farmer.username, password: "" });
+      setCredentialsForm({
+        username: result.farmer.username,
+        mobile: result.farmer.mobile,
+        password: "",
+      });
       showNotification("success", tr("Farmer login credentials updated.", "शेतकऱ्याचे लॉगिन तपशील अद्ययावत केले."));
     } catch (error: unknown) {
       showNotification(
@@ -1067,9 +1080,17 @@ export default function FarmerDetailsPage() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-start space-x-3.5">
-            <div className="w-13 h-13 rounded-2xl bg-linear-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
-              👨‍🌾
-            </div>
+            {farmer.profilePhotoDataUrl ? (
+              <img
+                src={farmer.profilePhotoDataUrl}
+                alt={tr(`${farmer.name}'s profile photo`, `${farmer.name} यांचा प्रोफाइल फोटो`)}
+                className="h-13 w-13 rounded-2xl object-cover shadow-md"
+              />
+            ) : (
+              <div className="w-13 h-13 rounded-2xl bg-linear-to-br from-emerald-600 to-green-700 flex items-center justify-center text-white font-black text-xl shadow-md">
+                👨‍🌾
+              </div>
+            )}
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
@@ -1122,7 +1143,7 @@ export default function FarmerDetailsPage() {
         </div>
 
         {/* Farmer Credentials & Contacts bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 text-xs">
           <div className="flex items-center space-x-2">
             <Phone className="w-4 h-4 text-slate-400" />
             <div>
@@ -1158,11 +1179,21 @@ export default function FarmerDetailsPage() {
               <span className="font-mono font-bold text-amber-800">{tr("Not displayed", "दाखवलेला नाही")}</span>
             </div>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Lock className="w-4 h-4 text-slate-400" />
+            <div>
+              <p className="text-[10px] text-slate-400 font-semibold">{tr("Aadhaar Number", "आधार क्रमांक")}</p>
+              <span className="font-mono font-bold text-slate-800">
+                {farmer.aadhaarNumber || tr("Not provided", "दिलेला नाही")}
+              </span>
+            </div>
+          </div>
         </div>
 
         <form
           onSubmit={handleSaveCredentials}
-          className="mt-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className="mt-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
         >
           <label className="block text-xs font-semibold text-slate-700">
             {tr("Farmer Login ID / Username", "शेतकरी लॉगिन आयडी / वापरकर्ता नाव")}
@@ -1174,6 +1205,19 @@ export default function FarmerDetailsPage() {
                 setCredentialsForm((current) => ({ ...current, username: event.target.value }))
               }
               autoComplete="off"
+              className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </label>
+          <label className="block text-xs font-semibold text-slate-700">
+            {tr("Mobile Number", "मोबाईल क्रमांक")}
+            <input
+              type="tel"
+              required
+              value={credentialsForm.mobile}
+              onChange={(event) =>
+                setCredentialsForm((current) => ({ ...current, mobile: event.target.value }))
+              }
+              autoComplete="tel"
               className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
           </label>
@@ -1201,6 +1245,7 @@ export default function FarmerDetailsPage() {
               : tr("Update Login", "लॉगिन अद्ययावत करा")}
           </button>
         </form>
+
       </div>
 
       <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

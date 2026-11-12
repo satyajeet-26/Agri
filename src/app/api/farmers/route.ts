@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getDb, saveDb, cloneMasterScheduleForPlot, toPublicFarmer } from "@/lib/db";
 import { isAdminRequest, unauthorizedAdminResponse } from "@/lib/admin-auth";
 import { calculateTotalGuntha } from "@/lib/area";
+import {
+  encryptAadhaarNumber,
+  isValidFarmerPhotoDataUrl,
+  normalizeAadhaarNumber,
+} from "@/lib/farmer-private-data";
 import { Farmer, Plot } from "@/types";
 
 export async function GET(request: Request) {
@@ -23,6 +28,34 @@ export async function POST(req: Request) {
     const db = await getDb();
     if (!isAdminRequest(req, db)) return unauthorizedAdminResponse();
     const body = await req.json();
+    if (
+      body.aadhaarNumber !== undefined &&
+      typeof body.aadhaarNumber !== "string"
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Enter a valid 12-digit Aadhaar number." },
+        { status: 400 }
+      );
+    }
+    const aadhaarInput = body.aadhaarNumber?.trim() || "";
+    const aadhaarNumber = aadhaarInput
+      ? normalizeAadhaarNumber(aadhaarInput)
+      : null;
+    if (aadhaarInput && !aadhaarNumber) {
+      return NextResponse.json(
+        { success: false, message: "Enter a valid 12-digit Aadhaar number." },
+        { status: 400 }
+      );
+    }
+    if (
+      body.profilePhotoDataUrl !== undefined &&
+      !isValidFarmerPhotoDataUrl(body.profilePhotoDataUrl)
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Choose a valid JPG, PNG, or WebP photo up to 1 MB." },
+        { status: 400 }
+      );
+    }
 
     const requestedUsername =
       typeof body.username === "string" ? body.username.trim() : "";
@@ -87,6 +120,15 @@ export async function POST(req: Request) {
       username,
       passwordHash: body.password || "1234",
       plainPassword: body.password || "1234",
+      ...(aadhaarNumber
+        ? {
+            aadhaarEncrypted: encryptAadhaarNumber(aadhaarNumber),
+            aadhaarLastFour: aadhaarNumber.slice(-4),
+          }
+        : {}),
+      ...(body.profilePhotoDataUrl
+        ? { profilePhotoDataUrl: body.profilePhotoDataUrl }
+        : {}),
       isActive: body.isActive !== undefined ? body.isActive : true,
       plots: initialPlots,
     };

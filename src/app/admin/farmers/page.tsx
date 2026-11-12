@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { formatArea, calculateTotalGuntha } from "@/lib/area";
+import { readFarmerProfilePhoto } from "@/lib/farmer-photo";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useLanguage } from "@/components/LanguageContext";
 import {
@@ -51,6 +52,10 @@ export default function FarmerMasterPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [identityForm, setIdentityForm] = useState({
+    aadhaarNumber: "",
+    profilePhotoDataUrl: "",
+  });
 
   // New Farmer Form State
   const [form, setForm] = useState<{
@@ -220,13 +225,29 @@ export default function FarmerMasterPage() {
       showNotification("error", mr ? "शेतकऱ्याचे नाव आणि मोबाइल क्रमांक आवश्यक आहे." : "Farmer name and mobile number are required");
       return;
     }
+    const aadhaarDigits = identityForm.aadhaarNumber.replace(/[\s-]/g, "");
+    if (aadhaarDigits && !/^[2-9]\d{11}$/.test(aadhaarDigits)) {
+      showNotification(
+        "error",
+        mr
+          ? "आधार क्रमांक २ ते ९ ने सुरू होणारा १२ अंकी क्रमांक असावा."
+          : "Aadhaar must be 12 digits and start with a number from 2 to 9."
+      );
+      return;
+    }
 
     setSavingFarmer(true);
     try {
       const res = await fetchWithTimeout("/api/farmers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          aadhaarNumber: identityForm.aadhaarNumber,
+          ...(identityForm.profilePhotoDataUrl
+            ? { profilePhotoDataUrl: identityForm.profilePhotoDataUrl }
+            : {}),
+        }),
       });
       const json = await res.json();
       if (res.ok && json.success) {
@@ -271,6 +292,7 @@ export default function FarmerMasterPage() {
             },
           ],
         });
+        setIdentityForm({ aadhaarNumber: "", profilePhotoDataUrl: "" });
       } else {
         showNotification(
           "error",
@@ -593,6 +615,95 @@ export default function FarmerMasterPage() {
                       placeholder="9822114455"
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
                     />
+                  </div>
+
+                  <h5 className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 sm:col-span-2 lg:col-span-3">
+                    {mr
+                      ? "शेतकऱ्याची ओळख — आधार क्रमांक आणि फोटो (ऐच्छिक)"
+                      : "Farmer Identity — Aadhaar Number & Photo (Optional)"}
+                  </h5>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {mr ? "आधार क्रमांक (ऐच्छिक)" : "Aadhaar Number (optional)"}
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={14}
+                      value={identityForm.aadhaarNumber}
+                      onChange={(event) =>
+                        setIdentityForm((current) => ({
+                          ...current,
+                          aadhaarNumber: event.target.value,
+                        }))
+                      }
+                      placeholder={mr ? "१२ अंकी आधार क्रमांक" : "12-digit Aadhaar number"}
+                      autoComplete="off"
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                    />
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {mr
+                        ? "आधार क्रमांक एन्क्रिप्ट करून फक्त प्रशासकासाठी ठेवला जाईल."
+                        : "Encrypted and visible only to admins in masked form."}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {mr ? "शेतकऱ्याचा फोटो" : "Farmer Photo"}
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={async (event) => {
+                        const input = event.currentTarget;
+                        const file = input.files?.[0];
+                        if (!file) return;
+                        try {
+                          const profilePhotoDataUrl = await readFarmerProfilePhoto(file);
+                          setIdentityForm((current) => ({
+                            ...current,
+                            profilePhotoDataUrl,
+                          }));
+                        } catch (error: unknown) {
+                          showNotification(
+                            "error",
+                            error instanceof Error
+                              ? error.message
+                              : mr
+                                ? "निवडलेला फोटो वाचता आला नाही."
+                                : "Unable to read the selected photo."
+                          );
+                          input.value = "";
+                        }
+                      }}
+                      className="w-full text-xs file:mr-2 file:rounded-lg file:border-0 file:bg-emerald-100 file:px-3 file:py-2 file:font-semibold file:text-emerald-800"
+                    />
+                    {identityForm.profilePhotoDataUrl && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <img
+                          src={identityForm.profilePhotoDataUrl}
+                          alt={mr ? "शेतकऱ्याचा फोटो पूर्वदृश्य" : "Farmer photo preview"}
+                          className="h-14 w-14 rounded-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIdentityForm((current) => ({
+                              ...current,
+                              profilePhotoDataUrl: "",
+                            }))
+                          }
+                          className="text-xs font-semibold text-red-700 hover:underline"
+                        >
+                          {mr ? "फोटो काढा" : "Remove photo"}
+                        </button>
+                      </div>
+                    )}
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {mr ? "JPG, PNG किंवा WebP; कमाल 1 MB." : "JPG, PNG, or WebP; maximum 1 MB."}
+                    </p>
                   </div>
 
                   <div>

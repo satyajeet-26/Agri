@@ -670,10 +670,20 @@ function cloneInitialDatabase(): DatabaseSchema {
 
 export function toPublicFarmer(
   farmer: Farmer
-): Omit<Farmer, "passwordHash" | "plainPassword"> {
+): Omit<
+  Farmer,
+  | "passwordHash"
+  | "plainPassword"
+  | "aadhaarEncrypted"
+  | "aadhaarLastFour"
+  | "profilePhotoDataUrl"
+> {
   const publicFarmer = { ...farmer };
   Reflect.deleteProperty(publicFarmer, "passwordHash");
   Reflect.deleteProperty(publicFarmer, "plainPassword");
+  Reflect.deleteProperty(publicFarmer, "aadhaarEncrypted");
+  Reflect.deleteProperty(publicFarmer, "aadhaarLastFour");
+  Reflect.deleteProperty(publicFarmer, "profilePhotoDataUrl");
   return publicFarmer;
 }
 

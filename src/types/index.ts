@@ -186,6 +186,10 @@ export interface Farmer {
   username: string;
   passwordHash: string;
   plainPassword?: string;
+  aadhaarEncrypted?: string;
+  aadhaarLastFour?: string;
+  aadhaarNumber?: string;
+  profilePhotoDataUrl?: string;
   isActive: boolean;
   plots: Plot[];
 }

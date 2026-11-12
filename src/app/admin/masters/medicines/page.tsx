@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useId, useState, useEffect } from "react";
 import {
   Pill,
   Building2,
@@ -23,6 +23,127 @@ import {
   UnitMaster,
   MedicineType,
 } from "@/types";
+
+type SearchOption = {
+  value: string;
+  label: string;
+};
+
+function SearchableSelect({
+  value,
+  options,
+  onChange,
+  placeholder,
+  allowCustom = false,
+}: {
+  value: string;
+  options: SearchOption[];
+  onChange: (value: string) => void;
+  placeholder: string;
+  allowCustom?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const listId = useId();
+  const selectedLabel = options.find((option) => option.value === value)?.label || value;
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  const close = () => {
+    setIsOpen(false);
+    setQuery("");
+    setActiveIndex(0);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        role="combobox"
+        aria-controls={listId}
+        aria-expanded={isOpen}
+        aria-autocomplete="list"
+        value={isOpen ? query : selectedLabel}
+        onFocus={() => {
+          setQuery("");
+          setActiveIndex(0);
+          setIsOpen(true);
+        }}
+        onChange={(event) => {
+          const nextQuery = event.target.value;
+          setQuery(nextQuery);
+          setActiveIndex(0);
+          if (allowCustom) onChange(nextQuery);
+        }}
+        onBlur={close}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" && isOpen && filteredOptions.length > 0) {
+            event.preventDefault();
+            setActiveIndex((index) => (index + 1) % filteredOptions.length);
+          } else if (event.key === "ArrowUp" && isOpen && filteredOptions.length > 0) {
+            event.preventDefault();
+            setActiveIndex((index) =>
+              index === 0 ? filteredOptions.length - 1 : index - 1
+            );
+          } else if (event.key === "Enter" && isOpen) {
+            const option = filteredOptions[activeIndex];
+            if (option) {
+              event.preventDefault();
+              onChange(option.value);
+              close();
+            } else if (allowCustom) {
+              close();
+            }
+          } else if (event.key === "Escape") {
+            close();
+          }
+        }}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500"
+      />
+      {isOpen && (
+        <div
+          id={listId}
+          role="listbox"
+          className="absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+        >
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option, index) => (
+              <button
+                key={`${option.value}-${index}`}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => {
+                  onChange(option.value);
+                  close();
+                }}
+                className={`block w-full rounded-lg px-3 py-2 text-left text-xs ${
+                  index === activeIndex
+                    ? "bg-emerald-50 text-emerald-900"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-2 text-xs text-slate-500">
+              {allowCustom
+                ? "No matches. Press Enter to use this value."
+                : "No matching options."}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MedicineMasterPage() {
   const { lang } = useLanguage();
@@ -186,6 +307,17 @@ export default function MedicineMasterPage() {
   const handleSaveMedicine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!medForm.name.trim()) return;
+    if (
+      !companies.some((company) => company.id === medForm.companyId) ||
+      !categories.some((category) => category.id === medForm.categoryId) ||
+      !units.some((unit) => unit.id === medForm.unitId)
+    ) {
+      showNotification(
+        "error",
+        tr("Select a valid company, category, and measurement unit.", "वैध कंपनी, वर्ग आणि मोजमापाचे एकक निवडा.")
+      );
+      return;
+    }
 
     const comp = companies.find((c) => c.id === medForm.companyId);
     const cat = categories.find((c) => c.id === medForm.categoryId);
@@ -494,34 +626,30 @@ export default function MedicineMasterPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {tr("Company *", "कंपनी *")}
                 </label>
-                <select
+                <SearchableSelect
                   value={medForm.companyId}
-                  onChange={(e) => setMedForm({ ...medForm, companyId: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  options={companies.map((company) => ({
+                    value: company.id,
+                    label: company.name,
+                  }))}
+                  onChange={(companyId) => setMedForm({ ...medForm, companyId })}
+                  placeholder={tr("Search companies...", "कंपन्या शोधा...")}
+                />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {tr("Category *", "वर्ग *")}
                 </label>
-                <select
+                <SearchableSelect
                   value={medForm.categoryId}
-                  onChange={(e) => setMedForm({ ...medForm, categoryId: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
+                  options={categories.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  }))}
+                  onChange={(categoryId) => setMedForm({ ...medForm, categoryId })}
+                  placeholder={tr("Search categories...", "वर्ग शोधा...")}
+                />
               </div>
             </div>
 
@@ -530,17 +658,15 @@ export default function MedicineMasterPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {tr("Measurement Unit", "मोजमापाचे एकक")}
                 </label>
-                <select
+                <SearchableSelect
                   value={medForm.unitId}
-                  onChange={(e) => setMedForm({ ...medForm, unitId: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                >
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.unitName} ({u.shortName})
-                    </option>
-                  ))}
-                </select>
+                  options={units.map((unit) => ({
+                    value: unit.id,
+                    label: `${unit.unitName} (${unit.shortName})`,
+                  }))}
+                  onChange={(unitId) => setMedForm({ ...medForm, unitId })}
+                  placeholder={tr("Search measurement units...", "मोजमापाची एकके शोधा...")}
+                />
               </div>
 
               <button
@@ -668,12 +794,15 @@ export default function MedicineMasterPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {tr("Company / Brand", "कंपनी / ब्रँड")}
                 </label>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={fertForm.company}
-                  onChange={(e) => setFertForm({ ...fertForm, company: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                  placeholder="Mahadhan / IFFCO"
+                  options={companies.map((company) => ({
+                    value: company.name,
+                    label: company.name,
+                  }))}
+                  onChange={(company) => setFertForm({ ...fertForm, company })}
+                  placeholder={tr("Search or enter a company...", "कंपनी शोधा किंवा प्रविष्ट करा...")}
+                  allowCustom
                 />
               </div>
 
@@ -697,12 +826,15 @@ export default function MedicineMasterPage() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {tr("Default Unit", "मूलभूत एकक")}
                 </label>
-                <input
-                  type="text"
+                <SearchableSelect
                   value={fertForm.unit}
-                  onChange={(e) => setFertForm({ ...fertForm, unit: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
-                  placeholder={tr("kg or bag", "किलो किंवा पोते")}
+                  options={units.map((unit) => ({
+                    value: unit.shortName,
+                    label: `${unit.unitName} (${unit.shortName})`,
+                  }))}
+                  onChange={(unit) => setFertForm({ ...fertForm, unit })}
+                  placeholder={tr("Search or enter a unit...", "एकक शोधा किंवा प्रविष्ट करा...")}
+                  allowCustom
                 />
               </div>
 

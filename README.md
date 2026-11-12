@@ -44,7 +44,9 @@ A full-stack, responsive web application and consultancy management system desig
   - Personal Info: Full Name, Mobile, WhatsApp, Opening Balance Type (Credit / Debit), Opening Balance (₹), Registration Date.
   - Location Info: State $\rightarrow$ District $\rightarrow$ Taluka $\rightarrow$ Village cascading selection.
   - Website Login: Username & Password for the farmer.
-  - Admins can update a farmer's login ID and reset their password from the farmer profile; leaving the new password blank keeps the current password.
+  - Admins can update a farmer's login ID and mobile number, and reset their password from the farmer profile; leaving the new password blank keeps the current password.
+  - Admins can save a farmer's Aadhaar number and upload a profile photo while adding a farmer or later from the individual farmer profile. Aadhaar is encrypted at rest and shown only as its last four digits to admins; the photo is shown to that farmer in their panel.
+  - Profile photos accept JPG, PNG, or WebP files up to 1 MB and are stored with the application database state.
   - **Multiple Plots**: Add multiple plots per farmer (e.g. Plot 1: Sugarcane 2 Acre, Plot 2: Ginger 20 Guntha).
   - **Automatic Master Cloning**: Automatically initializes and clones the standard master spray and fertilizer schedules for each new plot based on the Sowing Date!
 
@@ -172,6 +174,11 @@ application files.
      the HttpOnly admin session cookie.
    - `FARMER_SESSION_SECRET` (recommended): a long, random secret used to sign
      farmer session cookies.
+   - `FARMER_DATA_ENCRYPTION_KEY` (required to save Aadhaar numbers): a
+     randomly generated 32-byte key encoded as 64 hexadecimal characters.
+     Keep it secret and stable; never use a `NEXT_PUBLIC_` variable or commit it
+     to source control. Set the same variable in `.env.local` for local
+     development. Losing this key makes saved Aadhaar values unrecoverable.
 
    Keep configured session secrets stable across deployments. If either is
    omitted, its signing key falls back to `SUPABASE_SERVICE_ROLE_KEY` on

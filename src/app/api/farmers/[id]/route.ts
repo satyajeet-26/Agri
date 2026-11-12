@@ -9,6 +9,12 @@ import {
 } from "@/lib/schedule-progress";
 import { isFarmerRequest } from "@/lib/farmer-auth";
 import { getDateInIndia } from "@/lib/schedule-date";
+import {
+  decryptAadhaarNumber,
+  encryptAadhaarNumber,
+  isValidFarmerPhotoDataUrl,
+  normalizeAadhaarNumber,
+} from "@/lib/farmer-private-data";
 import { Plot } from "@/types";
 
 type PlotUpdateInput = Pick<Plot, "plotName" | "cropName" | "sowingDate"> &
@@ -54,8 +60,18 @@ export async function GET(
     }
 
     const publicFarmer = isAdmin
-      ? toPublicFarmer(farmer)
-      : toPublicFarmer(farmerScheduleView(farmer, db.scheduleProgress));
+      ? {
+          ...toPublicFarmer(farmer),
+          aadhaarLastFour: farmer.aadhaarLastFour,
+          aadhaarNumber: farmer.aadhaarEncrypted
+            ? decryptAadhaarNumber(farmer.aadhaarEncrypted)
+            : undefined,
+          profilePhotoDataUrl: farmer.profilePhotoDataUrl,
+        }
+      : {
+          ...toPublicFarmer(farmerScheduleView(farmer, db.scheduleProgress)),
+          profilePhotoDataUrl: farmer.profilePhotoDataUrl,
+        };
     const scheduleProgress = db.scheduleProgress.filter((entry) => entry.farmerId === id);
     const currentDate = getDateInIndia();
     const plotCurrentDays = Object.fromEntries(
@@ -98,6 +114,10 @@ export async function PUT(
 
     const current = db.farmers[index];
     let updatedUsername = current.username;
+    let updatedMobile = current.mobile;
+    let updatedAadhaar = current.aadhaarEncrypted;
+    let updatedAadhaarLastFour = current.aadhaarLastFour;
+    let updatedProfilePhoto = current.profilePhotoDataUrl;
     if (body.username !== undefined) {
       if (typeof body.username !== "string" || !body.username.trim()) {
         return NextResponse.json(
@@ -122,6 +142,30 @@ export async function PUT(
       }
     }
 
+    if (body.mobile !== undefined) {
+      if (typeof body.mobile !== "string" || !body.mobile.trim()) {
+        return NextResponse.json(
+          { success: false, message: "Farmer mobile number is required." },
+          { status: 400 }
+        );
+      }
+
+      updatedMobile = body.mobile.trim();
+      const normalizedMobile = updatedMobile.toLowerCase();
+      const mobileInUse = db.farmers.some(
+        (farmer, farmerIndex) =>
+          farmerIndex !== index &&
+          ((farmer.mobile || "").trim().toLowerCase() === normalizedMobile ||
+            (farmer.username || "").trim().toLowerCase() === normalizedMobile)
+      );
+      if (mobileInUse) {
+        return NextResponse.json(
+          { success: false, message: "This mobile number is already in use." },
+          { status: 409 }
+        );
+      }
+    }
+
     if (
       body.password !== undefined &&
       (typeof body.password !== "string" || body.password.length === 0)
@@ -130,6 +174,30 @@ export async function PUT(
         { success: false, message: "A new password cannot be empty." },
         { status: 400 }
       );
+    }
+
+    if (body.aadhaarNumber !== undefined && body.aadhaarNumber !== "") {
+      const aadhaarNumber = normalizeAadhaarNumber(body.aadhaarNumber);
+      if (!aadhaarNumber) {
+        return NextResponse.json(
+          { success: false, message: "Enter a valid 12-digit Aadhaar number." },
+          { status: 400 }
+        );
+      }
+      updatedAadhaar = encryptAadhaarNumber(aadhaarNumber);
+      updatedAadhaarLastFour = aadhaarNumber.slice(-4);
+    }
+
+    if (body.removeProfilePhoto === true) {
+      updatedProfilePhoto = undefined;
+    } else if (body.profilePhotoDataUrl !== undefined) {
+      if (!isValidFarmerPhotoDataUrl(body.profilePhotoDataUrl)) {
+        return NextResponse.json(
+          { success: false, message: "Choose a valid JPG, PNG, or WebP photo up to 1 MB." },
+          { status: 400 }
+        );
+      }
+      updatedProfilePhoto = body.profilePhotoDataUrl;
     }
 
     // If updating plots
@@ -176,7 +244,7 @@ export async function PUT(
     db.farmers[index] = {
       ...current,
       name: body.name ?? current.name,
-      mobile: body.mobile ?? current.mobile,
+      mobile: updatedMobile,
       whatsapp: body.whatsapp ?? current.whatsapp,
       openingBalanceType: body.openingBalanceType ?? current.openingBalanceType,
       openingBalance: body.openingBalance !== undefined ? Number(body.openingBalance) : current.openingBalance,
@@ -188,6 +256,9 @@ export async function PUT(
       username: updatedUsername,
       passwordHash: body.password ?? current.passwordHash,
       plainPassword: body.password ?? current.plainPassword,
+      aadhaarEncrypted: updatedAadhaar,
+      aadhaarLastFour: updatedAadhaarLastFour,
+      profilePhotoDataUrl: updatedProfilePhoto,
       isActive: body.isActive !== undefined ? body.isActive : current.isActive,
       plots: updatedPlots,
     };
@@ -197,7 +268,11 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: "Farmer updated successfully",
-      farmer: toPublicFarmer(db.farmers[index]),
+      farmer: {
+        ...toPublicFarmer(db.farmers[index]),
+        aadhaarLastFour: db.farmers[index].aadhaarLastFour,
+        profilePhotoDataUrl: db.farmers[index].profilePhotoDataUrl,
+      },
     });
   } catch (error: unknown) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
