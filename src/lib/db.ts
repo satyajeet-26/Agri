@@ -10,6 +10,7 @@ import {
 
 const DATA_DIR = path.join(process.cwd(), "src", "data");
 const DB_FILE = path.join(DATA_DIR, "krushi_db.json");
+const LEGACY_DEMO_TAGLINE = "Agriculture Consultancy & Crop Advisory Demo";
 
 // Initial Seed Data if file does not exist
 const INITIAL_DATABASE: DatabaseSchema = {
@@ -17,7 +18,7 @@ const INITIAL_DATABASE: DatabaseSchema = {
     id: "shop-01",
     name: "Bharathi Krushi Seva Kendra",
     ownerName: "Demo Owner",
-    tagline: "Agriculture Consultancy & Crop Advisory Demo",
+    tagline: "Agriculture Consultancy & Crop Advisory",
     mobile: "",
     whatsapp: "",
     email: "contact@example.test",
@@ -689,6 +690,9 @@ export function toPublicFarmer(
 }
 
 function normalizeDatabase(data: DatabaseSchema): DatabaseSchema {
+  if (data.shop?.tagline === LEGACY_DEMO_TAGLINE) {
+    data.shop.tagline = "Agriculture Consultancy & Crop Advisory";
+  }
   if (!data.admin.sessionSecret) {
     data.admin.sessionSecret = randomBytes(32).toString("hex");
   }
@@ -812,8 +816,9 @@ async function getSupabaseDatabase(
 
   if (state && typeof state === "object" && Array.isArray(state.farmers)) {
     const hasSessionSecret = Boolean(state.admin?.sessionSecret);
+    const hasLegacyDemoTagline = state.shop?.tagline === LEGACY_DEMO_TAGLINE;
     const normalized = normalizeDatabase(state);
-    if (!hasSessionSecret) {
+    if (!hasSessionSecret || hasLegacyDemoTagline) {
       await saveSupabaseDatabase(url, serviceRoleKey, normalized);
     }
     return normalized;
@@ -852,8 +857,9 @@ function getLocalDatabase(): DatabaseSchema {
     const raw = fs.readFileSync(DB_FILE, "utf-8");
     const data = JSON.parse(raw) as DatabaseSchema;
     const hasSessionSecret = Boolean(data.admin?.sessionSecret);
+    const hasLegacyDemoTagline = data.shop?.tagline === LEGACY_DEMO_TAGLINE;
     const normalized = normalizeDatabase(data);
-    if (!hasSessionSecret) {
+    if (!hasSessionSecret || hasLegacyDemoTagline) {
       fs.writeFileSync(DB_FILE, JSON.stringify(normalized, null, 2), "utf-8");
     }
     return normalized;
